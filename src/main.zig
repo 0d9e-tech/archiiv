@@ -1,43 +1,24 @@
 const std = @import("std");
-const log = std.log.scoped(.main);
-const zap = @import("zap");
-
-fn nyi(r: zap.SimpleRequest) void {
-    r.sendBody("Not yet implemented") catch return;
-}
-
-const routes = std.ComptimeStringMap(zap.SimpleHttpRequestFn, .{
-    .{ "/upload_file", nyi },
-    .{ "/tree", nyi },
-    .{ "/list", nyi },
-    .{ "/list_shared_with_me", nyi },
-    .{ "/get_permissions", nyi },
-    .{ "/set_permissions", nyi },
-});
-
-fn dispatch(r: zap.SimpleRequest) void {
-    if (r.path) |path| {
-        log.info("request: {s}", .{path});
-        if (routes.get(path)) |foo| {
-            return foo(r);
-        }
-    }
-    r.sendBody("Unknown endpoint") catch return;
-}
 
 pub fn main() !void {
-    var listener = zap.SimpleHttpListener.init(.{
-        .port = 3000,
-        .on_request = dispatch,
-        .log = false,
-    });
-    try listener.listen();
+    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
+    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
 
-    log.info("started", .{});
+    // stdout is for the actual output of your application, for example if you
+    // are implementing gzip, then only the compressed bytes should be sent to
+    // stdout, not any debugging messages.
+    const stdout_file = std.io.getStdOut().writer();
+    var bw = std.io.bufferedWriter(stdout_file);
+    const stdout = bw.writer();
 
-    // start worker threads
-    zap.start(.{
-        .threads = 2,
-        .workers = 2,
-    });
+    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+
+    try bw.flush(); // don't forget to flush!
+}
+
+test "simple test" {
+    var list = std.ArrayList(i32).init(std.testing.allocator);
+    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
+    try list.append(42);
+    try std.testing.expectEqual(@as(i32, 42), list.pop());
 }
