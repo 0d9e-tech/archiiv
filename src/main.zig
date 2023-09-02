@@ -108,7 +108,10 @@ fn handle(res_: Server.Response, main_alc: Alc, root: fs.Dir) void {
     // We use arena allocator for the entire request and then throw the arena
     // away at the end
     var arena = std.heap.ArenaAllocator.init(main_alc);
-    defer arena.deinit();
+    defer {
+        log.debug("Alloc list has {} nodes after request", .{arena.state.buffer_list.len()});
+        arena.deinit();
+    }
     const alc = arena.allocator();
 
     res.wait() catch |e| {
