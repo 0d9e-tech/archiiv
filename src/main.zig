@@ -1,24 +1,138 @@
 const std = @import("std");
+const mem = std.mem;
+const time = std.time;
+const assert = std.debug.assert;
+const log = std.log.default;
+const fs = std.fs;
+const Alc = mem.Allocator;
+const Server = std.http.Server;
+const fsh = @import("fs_helper.zig");
+const Config = @import("Config.zig");
 
-pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+const treeEndpoint = @import("treeEndpoint.zig").handle;
+const loginEndpoint = @import("loginEndpoint.zig").handle;
+const whoamiEndpoint = @import("whoamiEndpoint.zig").handle;
 
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
+pub fn main() void {
+    // we are a well behaved program
+    greet();
+    defer farewell();
 
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+    // this is the main allocator for the whole application
+    var gpa = std.heap.GeneralPurposeAllocator(.{
+        .thread_safe = true,
+        .stack_trace_frames = 0,
+    }){};
+    defer _ = gpa.deinit();
+    var alc = gpa.allocator();
 
-    try bw.flush(); // don't forget to flush!
+    var arena = std.heap.ArenaAllocator.init(alc);
+    defer arena.deinit();
+    const conf = fsh.readConfigLeaky(arena.allocator()) catch |e| {
+        log.err("Failed to read config file: {}", .{e});
+        return;
+    };
+
+    // The directory where archív will operate in
+    const root = fs.openDirAbsolute(conf.root, .{}) catch |e| {
+        log.err("Failed to open archív root directory '{s}': {}", .{ conf.root, e });
+        return;
+    };
+
+    loop(alc, conf, root);
 }
 
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
+fn greet() void {
+    const epoch_seconds = time.epoch.EpochSeconds{
+        .secs = @intCast(time.timestamp()),
+    };
+    const day_seconds = epoch_seconds.getDaySeconds();
+    const hour_of_day = day_seconds.getHoursIntoDay();
+    log.info("Good {s}", .{switch (hour_of_day) {
+        0...11 => "morning",
+        12...19 => "afternoon",
+        else => "evening",
+    }});
+}
+
+fn farewell() void {
+    log.info("Farewell", .{});
+}
+
+fn loop(alc: Alc, conf: Config, root: fs.Dir) void {
+    var s = Server.init(alc, .{});
+    defer s.deinit();
+
+    const address = std.net.Address.parseIp("127.0.0.1", conf.port) catch unreachable;
+    s.listen(address) catch |e| {
+        log.err("Failed to listen: {}", .{e});
+        return;
+    };
+
+    while (true) {
+        var res = s.accept(.{ .allocator = alc }) catch |e| {
+            log.err("Failed to accept connection (ignoring): {}", .{e});
+            continue;
+        };
+
+        // Fire and forget the handler
+        // Important: don't pass response by pointer haha it's another thread
+        const t = std.Thread.spawn(.{}, handle, .{ res, alc, root }) catch |e| {
+            log.err("Failed to spawn a thread to handle incoming connection (ignoring): {}", .{e});
+            continue;
+        };
+        t.setName("connHandler") catch {};
+        t.detach();
+    }
+}
+
+const endpoints = std.ComptimeStringMap(*const fn (*Server.Response, Alc, fs.Dir, []const u8) void, .{
+    .{ "/tree/", treeEndpoint },
+    .{ "/login/", loginEndpoint },
+    .{ "/whoami/", whoamiEndpoint },
+    //.{ "/", ... },
+    //.{ "/upload/", ... },
+    //.{ "/ls/", ... },
+    //.{ "/lsshared/", ... },
+    //.{ "/getperm/", ... },
+    //.{ "/setperm/", ... },
+    // ...
+});
+
+fn handle(res_: Server.Response, main_alc: Alc, root: fs.Dir) void {
+    var res = res_; // local mutable copy
+
+    // response is not allocated in the arena
+    defer res.deinit();
+
+    // We use arena allocator for the entire request and then throw the arena
+    // away at the end
+    var arena = std.heap.ArenaAllocator.init(main_alc);
+    defer arena.deinit();
+    const alc = arena.allocator();
+
+    res.wait() catch |e| {
+        log.err("Failed to wait for the response: {}", .{e});
+        return;
+    };
+
+    const path = res.request.target;
+
+    // Extract the endpoint name
+    const first_segment = blk: {
+        var pos = mem.indexOfScalarPos(u8, path, 1, '/') orelse 0;
+        break :blk path[0 .. pos + 1];
+    };
+
+    log.info("Handling request to: {s}", .{first_segment});
+
+    // dispatch to endpoint handlers
+    if (endpoints.get(first_segment)) |handler| {
+        handler(&res, alc, root, path[first_segment.len..]);
+    } else {
+        res.status = .not_found;
+        res.do() catch |e| {
+            log.err("Failed to send headers: {}", .{e});
+        };
+    }
 }
