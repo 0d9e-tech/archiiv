@@ -121,17 +121,15 @@ fn handle(res_: Server.Response, main_alc: Alc, root: fs.Dir) void {
 
     const path = res.request.target;
 
+    const pos = mem.indexOfScalarPos(u8, path, 1, '/') orelse 0;
     // Extract the endpoint name
-    const first_segment = blk: {
-        var pos = mem.indexOfScalarPos(u8, path, 1, '/') orelse 0;
-        break :blk path[0 .. pos + 1];
-    };
+    const first_segment = path[0 .. pos + 1];
 
     log.info("Handling request to: {s}", .{first_segment});
 
     // dispatch to endpoint handlers
     if (endpoints.get(first_segment)) |handler| {
-        handler(&res, alc, root, path[first_segment.len..]);
+        handler(&res, alc, root, path[pos + 1 ..]);
     } else {
         res.status = .not_found;
         res.do() catch |e| {
