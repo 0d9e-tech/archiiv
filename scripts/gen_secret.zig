@@ -2,8 +2,8 @@
 // simply run with `zig run`
 
 const std = @import("std");
-const cryptoh = @import("crypto_helper.zig");
-const fsh = @import("fs_helper.zig");
+const cryptoh = @import("src/crypto_helper.zig");
+const fsh = @import("src/fs_helper.zig");
 
 pub fn main() !void {
     const secret = try cryptoh.generateSecret();

@@ -2,9 +2,9 @@
 // simply run with `zig run`
 
 const std = @import("std");
-const cryptoh = @import("crypto_helper.zig");
-const fsh = @import("fs_helper.zig");
-const User = @import("user.zig").User;
+const cryptoh = @import("src/crypto_helper.zig");
+const fsh = @import("src/fs_helper.zig");
+const User = @import("src/user.zig").User;
 
 pub fn main() !void {
     const users = [_]User{
