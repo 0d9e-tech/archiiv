@@ -125,7 +125,17 @@ fn handle(res_: Server.Response, main_alc: Alc, root: fs.Dir) void {
         return;
     };
 
-    const path = res.request.target;
+    var path = res.request.target;
+
+    // Strip fragment (can it even be here?)
+    if (mem.indexOfScalar(u8, path, '#')) |fragment_start| {
+        path = path[0..fragment_start];
+    }
+
+    // Strip query
+    if (mem.indexOfScalar(u8, path, '?')) |querry_start| {
+        path = path[0..querry_start];
+    }
 
     const pos = mem.indexOfScalarPos(u8, path, 1, '/') orelse 0;
     // Extract the endpoint name
