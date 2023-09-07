@@ -29,11 +29,15 @@ pub fn handleInner(res: *Server.Response, alc: Alc, root: fs.Dir, path: []const 
         const user = try endpointh.getUserFromUserIdLeaky(alc, root, user_id) orelse return bad(res, .unauthorized);
 
         try res.do();
-        const user_str = try std.json.stringifyAlloc(alc, user, .{});
-        res.transfer_encoding = .{ .content_length = user_str.len };
+
+        // We dont send the entire User struct since it contains the otp secret.
+        // {"id":19,"name":""}
+        res.transfer_encoding = .{ .content_length = 19 + user.name.len };
         try res.headers.append("Content-Type", "application/json");
         try res.headers.append("Connection", "close");
-        _ = try res.writeAll(user_str);
+        _ = try res.writeAll("{\"id\":19,\"name\":\"");
+        _ = try res.writeAll(user.name);
+        _ = try res.writeAll("\"}");
         try res.finish();
     } else {
         return bad(res, .unauthorized);

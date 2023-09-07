@@ -79,12 +79,10 @@ pub fn getSessionCookie(alc: Alc, headers: http.Headers) !?Session {
 
 pub fn setSessionCookieLeaky(alc: Alc, headers: *http.Headers, session: Session) !void {
     var cookie_header = std.ArrayListUnmanaged(u8){};
-    const writer = cookie_header.writer(alc);
-    _ = try writer.writeAll("archiv-session-secret=");
-
     const session_base64 = try b64h.serialiseLeaky(session, alc);
-    _ = try writer.writeAll(session_base64);
 
-    _ = try writer.writeAll("; Secure; Path=/");
+    const writer = cookie_header.writer(alc);
+    try writer.print("archiv-session-secret={s}; Secure; Path=/", .{session_base64});
+
     return headers.append("Set-Cookie", cookie_header.items);
 }
