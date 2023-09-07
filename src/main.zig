@@ -6,6 +6,7 @@ const log = std.log.default;
 const fs = std.fs;
 const Alc = mem.Allocator;
 const Server = std.http.Server;
+const Thread = std.Thread;
 const fsh = @import("fs_helper.zig");
 const Config = @import("Config.zig");
 
@@ -72,20 +73,23 @@ fn loop(alc: Alc, conf: Config, root: fs.Dir) void {
         return;
     };
 
+    var pool: Thread.Pool = undefined;
+    Thread.Pool.init(&pool, .{ .allocator = alc }) catch |e| {
+        log.err("Failed to start up thread pool: {}", .{e});
+        return;
+    };
+    defer pool.deinit();
+
     while (true) {
         var res = s.accept(.{ .allocator = alc }) catch |e| {
             log.err("Failed to accept connection (ignoring): {}", .{e});
             continue;
         };
 
-        // Fire and forget the handler
-        // Important: don't pass response by pointer haha it's another thread
-        const t = std.Thread.spawn(.{}, handle, .{ res, alc, root }) catch |e| {
+        pool.spawn(handle, .{ res, alc, root }) catch |e| {
             log.err("Failed to spawn a thread to handle incoming connection (ignoring): {}", .{e});
             continue;
         };
-        t.setName("connHandler") catch {};
-        t.detach();
     }
 }
 
