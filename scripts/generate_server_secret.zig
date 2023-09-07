@@ -1,4 +1,4 @@
-// Tiny helper to generate server secrets
+// Tiny helper to generate server secret
 // simply run with `zig run`
 
 const std = @import("std");

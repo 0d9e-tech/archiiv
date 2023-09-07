@@ -1,11 +1,10 @@
-// Tiny helper to generate sample .users file
-// simply run with `zig run`
+// Tiny helper to generate TOTP secret
+// use the 'register.sh' shell script
 
 const std = @import("std");
 const cryptoh = @import("src/crypto_helper.zig");
 const fsh = @import("src/fs_helper.zig");
 const User = @import("src/user.zig").User;
-const otp = @import("src/otp.zig");
 const base32 = @import("src/base32.zig");
 
 pub fn main() !void {
@@ -16,7 +15,7 @@ pub fn main() !void {
     const user = User{
         .id = 19,
         .name = "prokop",
-        .otp_secret = otp.generateOtpSecret(),
+        .otp_secret = cryptoh.generateOtpSecret(),
     };
     // We store the secret in memory as raw bytes, save it to disk as base64
     // and (as the TOTP spec dictates) send to user as base32
