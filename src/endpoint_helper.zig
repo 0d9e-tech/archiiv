@@ -9,7 +9,8 @@ const user = @import("user.zig");
 const User = user.User;
 const UserId = user.UserId;
 const fsh = @import("fs_helper.zig");
-const Session = @import("crypto_helper.zig").Session;
+const cryptoh = @import("crypto_helper.zig");
+const Session = cryptoh.Session;
 const b64h = @import("base64_helper.zig");
 
 // inlined to catch the error return trace from caller
@@ -30,6 +31,15 @@ pub fn bad(res: *Server.Response, status: http.Status) void {
     res.do() catch |e| {
         log.err("Failed to send http response headers: {}", .{e});
     };
+}
+
+pub fn getUserFromHeadersLeaky(alc: Alc, headers: http.Headers, root: fs.Dir) !?User {
+    const session = try getSessionCookie(alc, headers) orelse return null;
+    const secret = try fsh.getSecretLeaky(alc, root);
+    if (cryptoh.verifySignedSession(secret, session)) |user_id| {
+        return try getUserFromUserIdLeaky(alc, root, user_id);
+    }
+    return null;
 }
 
 pub fn getUserFromUsernameLeaky(alc: Alc, root: fs.Dir, username: []const u8) !?User {

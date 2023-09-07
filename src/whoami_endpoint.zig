@@ -21,13 +21,7 @@ pub fn handleInner(res: *Server.Response, alc: Alc, root: fs.Dir, path: []const 
         return bad(res, .bad_request);
     }
 
-    const session = try endpointh.getSessionCookie(alc, res.request.headers) orelse return bad(res, .unauthorized);
-
-    const secret = try fsh.getSecretLeaky(alc, root);
-
-    if (cryptoh.verifySignedSession(secret, session)) |user_id| {
-        const user = try endpointh.getUserFromUserIdLeaky(alc, root, user_id) orelse return bad(res, .unauthorized);
-
+    if (try endpointh.getUserFromHeadersLeaky(alc, res.request.headers, root)) |user| {
         try res.do();
 
         // We dont send the entire User struct since it contains the otp secret.
@@ -35,9 +29,9 @@ pub fn handleInner(res: *Server.Response, alc: Alc, root: fs.Dir, path: []const 
         res.transfer_encoding = .{ .content_length = 19 + user.name.len };
         try res.headers.append("Content-Type", "application/json");
         try res.headers.append("Connection", "close");
-        _ = try res.writeAll("{\"id\":19,\"name\":\"");
-        _ = try res.writeAll(user.name);
-        _ = try res.writeAll("\"}");
+        try res.writeAll("{\"id\":19,\"name\":\"");
+        try res.writeAll(user.name);
+        try res.writeAll("\"}");
         try res.finish();
     } else {
         return bad(res, .unauthorized);

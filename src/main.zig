@@ -10,7 +10,7 @@ const Thread = std.Thread;
 const fsh = @import("fs_helper.zig");
 const Config = @import("Config.zig");
 
-const treeEndpoint = @import("tree_endpoint.zig").handle;
+const lsEndpoint = @import("ls_endpoint.zig").handle;
 const loginEndpoint = @import("login_endpoint.zig").handle;
 const whoamiEndpoint = @import("whoami_endpoint.zig").handle;
 
@@ -94,12 +94,11 @@ fn loop(alc: Alc, conf: Config, root: fs.Dir) void {
 }
 
 const endpoints = std.ComptimeStringMap(*const fn (*Server.Response, Alc, fs.Dir, []const u8) void, .{
-    .{ "/tree/", treeEndpoint },
+    .{ "/ls/", lsEndpoint },
     .{ "/login/", loginEndpoint },
     .{ "/whoami/", whoamiEndpoint },
     //.{ "/", ... },
     //.{ "/upload/", ... },
-    //.{ "/ls/", ... },
     //.{ "/lsshared/", ... },
     //.{ "/getperm/", ... },
     //.{ "/setperm/", ... },
