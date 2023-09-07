@@ -22,16 +22,14 @@ pub fn handleInner(res: *Server.Response, alc: Alc, root: fs.Dir, path: []const 
     }
 
     if (try endpointh.getUserFromHeadersLeaky(alc, res.request.headers, root)) |user| {
+        res.transfer_encoding = .chunked;
+
         try res.do();
 
-        // We dont send the entire User struct since it contains the otp secret.
-        // {"id":19,"name":""}
-        res.transfer_encoding = .{ .content_length = 19 + user.name.len };
         try res.headers.append("Content-Type", "application/json");
         try res.headers.append("Connection", "close");
-        try res.writeAll("{\"id\":19,\"name\":\"");
-        try res.writeAll(user.name);
-        try res.writeAll("\"}");
+        // We dont send the entire User struct since it contains the otp secret.
+        try std.json.stringify(.{ .name = user.name, .id = user.id }, .{}, res.writer());
         try res.finish();
     } else {
         return bad(res, .unauthorized);

@@ -22,27 +22,23 @@ pub fn handleInner(res: *Server.Response, alc: Alc, root: fs.Dir, path: []const 
         );
         defer target_dir.close();
 
-        const json = try constructJsonLeaky(alc, &target_dir);
-
+        res.transfer_encoding = .chunked;
         try res.do();
-        res.transfer_encoding = .{ .content_length = json.len };
         try res.headers.append("Content-Type", "application/json");
         try res.headers.append("Connection", "close");
-        try res.writeAll(json);
+        try constructJsonLeaky(&target_dir, res.writer());
         try res.finish();
     } else {
         return bad(res, .unauthorized);
     }
 }
 
-fn constructJsonLeaky(alc: Alc, root: *fs.IterableDir) ![]u8 {
-    var buffer = std.ArrayList(u8).init(alc);
-    var jws = std.json.writeStream(buffer.writer(), .{});
+fn constructJsonLeaky(root: *fs.IterableDir, sink: anytype) !void {
+    var jws = std.json.writeStream(sink, .{});
     var itr = root.iterate();
     try jws.beginArray();
     while (try itr.next()) |p| {
         try jws.write(p);
     }
     try jws.endArray();
-    return buffer.items;
 }
