@@ -33,6 +33,7 @@ pub fn bad(res: *Server.Response, status: http.Status) void {
     };
 }
 
+// TODO: instead of null return public user
 pub fn getUserFromHeadersLeaky(alc: Alc, headers: http.Headers, root: fs.Dir) !?User {
     const session = try getSessionCookie(alc, headers) orelse return null;
     const secret = try fsh.getSecretLeaky(alc, root);

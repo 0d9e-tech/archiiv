@@ -18,6 +18,7 @@ pub fn handle(res: *Server.Response, alc: Alc, root: fs.Dir, path: []const u8) v
 }
 
 pub fn handleInner(res: *Server.Response, alc: Alc, root: fs.Dir, path: []const u8) !void {
+    // TODO: handle thumbnails and image/video format conversion
     if (try endpointh.getUserFromHeadersLeaky(alc, res.request.headers, root)) |user| {
         const file_bytes = try res.reader().readAllAlloc(alc, std.math.maxInt(usize));
 

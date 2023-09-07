@@ -26,7 +26,8 @@ pub fn handleInner(res: *Server.Response, alc: Alc, root: fs.Dir, path: []const 
         try res.do();
         try res.headers.append("Content-Type", "application/json");
         try res.headers.append("Connection", "close");
-        try constructJsonLeaky(&target_dir, res.writer());
+        var buffered = std.io.bufferedWriter(res.writer());
+        try constructJsonLeaky(&target_dir, buffered.writer());
         try res.finish();
     } else {
         return bad(res, .unauthorized);

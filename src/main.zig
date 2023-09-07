@@ -99,11 +99,17 @@ const endpoints = std.ComptimeStringMap(*const fn (*Server.Response, Alc, fs.Dir
     .{ "/login/", loginEndpoint },
     .{ "/whoami/", whoamiEndpoint },
     .{ "/upload/", uploadEndpoint },
-    //.{ "/", ... },
-    //.{ "/lsshared/", ... },
-    //.{ "/getperm/", ... },
-    //.{ "/setperm/", ... },
-    // ...
+    // TODO missing endpoints:
+    // - cat
+    // - cat_thumbnail
+    // - cat_meta? - for photo location and time info? what about nonphotos
+    //   - bulk version?
+    // - some directory meta data getter and setter
+    //   - owner, permissions&sharing, thumbnail options
+    //   - inheritance
+    // - share some dir with someone
+    // - delete/trash file?
+    // - move file?
 });
 
 fn handle(res_: Server.Response, main_alc: Alc, root: fs.Dir) void {
