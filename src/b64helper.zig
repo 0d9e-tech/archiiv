@@ -13,6 +13,7 @@ pub fn Base64EncDec(comptime len: comptime_int) type {
 
         /// Overwrite default json stringify to serialise this as base64 string instead of array
         pub fn jsonStringify(self: @This(), jws: anytype) !void {
+            //jws is json.stringify.WriteStream
             var buffer: [B64Len]u8 = undefined;
             const slice = std.base64.url_safe.Encoder.encode(&buffer, &self.value);
             _ = try jws.write(slice);

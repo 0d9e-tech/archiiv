@@ -33,7 +33,7 @@ pub fn handleInner(res: *Server.Response, alc: Alc, root: fs.Dir, path: []const 
         res.transfer_encoding = .{ .content_length = user_str.len };
         try res.headers.append("Content-Type", "application/json");
         try res.headers.append("Connection", "close");
-        _ = try res.write(user_str);
+        _ = try res.writeAll(user_str);
         try res.finish();
     } else {
         return bad(res, .unauthorized);
