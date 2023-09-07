@@ -60,7 +60,7 @@ fn farewell() void {
 }
 
 fn loop(alc: Alc, conf: Config, root: fs.Dir) void {
-    var s = Server.init(alc, .{});
+    var s = Server.init(alc, .{ .reuse_port = true });
     defer s.deinit();
 
     const address = std.net.Address.parseIp("127.0.0.1", conf.port) catch unreachable;

@@ -44,7 +44,8 @@ pub fn writeSecret(secret: Secret, root: std.fs.Dir) !void {
 
 // TODO: file locking on linux is apparently unreliable:
 // https://www.kernel.org/doc/Documentation/filesystems/mandatory-locking.txt
-// switch to mutexes or maybe get away with only using the atomic io operations
+// -> have a mutex for the .users file and get away with atomic io
+// syscalls for per-file metadata
 
 /// Reads @T from @absolute_path
 fn readFileLeaky(
@@ -54,7 +55,6 @@ fn readFileLeaky(
     path: []const u8,
 ) !T {
     log.debug("Reading {s} from '{s}'", .{ @typeName(T), path });
-
     const file = try dir.openFile(path, .{ .mode = .read_only, .lock = .shared });
     defer file.close();
     const reader = file.reader();

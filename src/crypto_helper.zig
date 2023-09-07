@@ -12,8 +12,11 @@ const UserId = @import("user.zig").UserId;
 // TODO choosen arbitrarily
 const sign = crypto.sign.Ed25519;
 
+/// The secret is 256 bytes
+/// Note: they are written to disk as base64
+/// Note: the TOTP spec works with base32
+/// Care is needed when converting this
 pub const OTPSecret = Base64EncDec(256);
-pub const OTPCode = struct {}; // TODO
 
 pub const Session = struct {
     // payload is _extern_ to guarantee consistent memory layout which we
@@ -61,11 +64,4 @@ pub fn verifySignedSession(secret: Secret, session: Session) ?UserId {
     const payload_bytes = std.mem.asBytes(&session.payload);
     signature.verify(payload_bytes, pkey) catch return null;
     return session.payload.user_id;
-}
-
-pub fn validateOtpCode(u: User, otp_code_base64: []const u8) bool {
-    // TODO do the authentication
-    _ = u;
-    _ = otp_code_base64;
-    return true;
 }
