@@ -13,6 +13,7 @@ const Config = @import("Config.zig");
 const lsEndpoint = @import("ls_endpoint.zig").handle;
 const loginEndpoint = @import("login_endpoint.zig").handle;
 const whoamiEndpoint = @import("whoami_endpoint.zig").handle;
+const uploadEndpoint = @import("upload_endpoint.zig").handle;
 
 pub fn main() void {
     // we are a well behaved program
@@ -97,8 +98,8 @@ const endpoints = std.ComptimeStringMap(*const fn (*Server.Response, Alc, fs.Dir
     .{ "/ls/", lsEndpoint },
     .{ "/login/", loginEndpoint },
     .{ "/whoami/", whoamiEndpoint },
+    .{ "/upload/", uploadEndpoint },
     //.{ "/", ... },
-    //.{ "/upload/", ... },
     //.{ "/lsshared/", ... },
     //.{ "/getperm/", ... },
     //.{ "/setperm/", ... },
@@ -115,7 +116,7 @@ fn handle(res_: Server.Response, main_alc: Alc, root: fs.Dir) void {
     // away at the end
     var arena = std.heap.ArenaAllocator.init(main_alc);
     defer {
-        log.debug("Alloc list has {} nodes after request", .{arena.state.buffer_list.len()});
+        log.debug("Arena has {} nodes after request", .{arena.state.buffer_list.len()});
         arena.deinit();
     }
     const alc = arena.allocator();
