@@ -9,9 +9,9 @@ const Server = std.http.Server;
 const fsh = @import("fs_helper.zig");
 const Config = @import("Config.zig");
 
-const treeEndpoint = @import("treeEndpoint.zig").handle;
-const loginEndpoint = @import("loginEndpoint.zig").handle;
-const whoamiEndpoint = @import("whoamiEndpoint.zig").handle;
+const treeEndpoint = @import("tree_endpoint.zig").handle;
+const loginEndpoint = @import("login_endpoint.zig").handle;
+const whoamiEndpoint = @import("whoami_endpoint.zig").handle;
 
 pub fn main() void {
     // we are a well behaved program

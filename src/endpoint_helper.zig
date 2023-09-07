@@ -10,7 +10,7 @@ const User = user.User;
 const UserId = user.UserId;
 const fsh = @import("fs_helper.zig");
 const Session = @import("crypto_helper.zig").Session;
-const b64h = @import("b64helper.zig");
+const b64h = @import("base64_helper.zig");
 
 // inlined to catch the error return trace from caller
 pub inline fn serverErr(err: anyerror, res: *Server.Response) void {

@@ -10,8 +10,6 @@ const fsh = @import("fs_helper.zig");
 const cryptoh = @import("crypto_helper.zig");
 const Session = cryptoh.Session;
 
-const otp = @import("otp.zig");
-
 const endpointh = @import("endpoint_helper.zig");
 const bad = endpointh.bad;
 
@@ -29,7 +27,7 @@ pub fn handleInner(res: *Server.Response, alc: Alc, root: fs.Dir, path: []const 
 
     const user = try endpointh.getUserFromUsernameLeaky(alc, root, username) orelse return bad(res, .unauthorized);
 
-    if (!try otp.validateOtpCode(user, otp_code)) {
+    if (!try cryptoh.validateOtpCode(user, otp_code)) {
         return bad(res, .unauthorized);
     }
 
