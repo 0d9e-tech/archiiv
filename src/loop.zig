@@ -110,9 +110,6 @@ fn dispatchToHandler(alc: Alc, res_: Server.Response, root: fs.Dir) !void {
         return setStatus(&res, status);
     }
 
-    // all of the following endpoints return json
-    try res.headers.append("Content-Type", "application/json");
-    try res.headers.append("Connection", "close");
     res.transfer_encoding = .chunked;
 
     // temp buffer for the json response
