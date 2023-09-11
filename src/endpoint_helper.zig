@@ -37,7 +37,7 @@ pub fn setStatus(res: *Server.Response, status: http.Status) void {
 pub fn getUserFromHeadersLeaky(alc: Alc, headers: http.Headers, root: fs.Dir) !?User {
     const session = try getSessionCookie(alc, headers) orelse return null;
     const secret = try fsh.getSecretLeaky(alc, root);
-    if (cryptoh.verifySignedSession(secret, session)) |user_id| {
+    if (try cryptoh.verifySignedSession(secret, session)) |user_id| {
         return try getUserFromUserIdLeaky(alc, root, user_id);
     }
     return null;

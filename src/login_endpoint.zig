@@ -19,7 +19,7 @@ pub fn handle(headers: *http.Headers, alc: Alc, root: fs.Dir, path: []const u8) 
 
     const user = try endpointh.getUserFromUsernameLeaky(alc, root, username) orelse return .unauthorized;
 
-    if (!try cryptoh.validateOtpCode(user, otp_code)) {
+    if (!cryptoh.checkOtpCodeIsValid(user, otp_code)) {
         return .unauthorized;
     }
 

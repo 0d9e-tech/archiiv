@@ -12,7 +12,7 @@ const base32 = @import("base32.zig");
 const User = @import("user.zig").User;
 const UserId = @import("user.zig").UserId;
 
-// TODO choosen arbitrarily
+// TODO sign implementation choosen arbitrarily
 const sign = crypto.sign.Ed25519;
 
 /// The secret is 256 bytes
@@ -34,13 +34,15 @@ pub const Session = struct {
 
 pub const Secret = Base64EncDec(sign.SecretKey.encoded_length);
 
-pub fn generateSecret() !Secret {
+pub fn generateSecret() error{IdentityElement}!Secret {
     const key = try sign.KeyPair.create(null);
     return Secret{ .value = key.secret_key.toBytes() };
 }
 
-pub fn signSession(user_id: UserId, secret: Secret) !Session {
-    const skey = try sign.SecretKey.fromBytes(secret.value);
+pub fn signSession(user_id: UserId, secret: Secret) error{ InvalidEncoding, IdentityElement, NonCanonical, KeyMismatch, WeakPublicKey }!Session {
+    // this function returns empty error set for some reason..
+    // we handle all 0 of those errors
+    const skey = sign.SecretKey.fromBytes(secret.value) catch |e| switch (e) {};
     const key = try sign.KeyPair.fromSecretKey(skey);
 
     var ses = Session{
@@ -61,12 +63,22 @@ pub fn signSession(user_id: UserId, secret: Secret) !Session {
     return ses;
 }
 
-pub fn verifySignedSession(secret: Secret, session: Session) ?UserId {
-    const skey = sign.SecretKey.fromBytes(secret.value) catch return null;
-    const pkey = sign.PublicKey.fromBytes(skey.publicKeyBytes()) catch return null;
+pub fn verifySignedSession(secret: Secret, session: Session) error{ NonCanonical, InvalidEncoding, IdentityElement, WeakPublicKey }!?UserId {
+    // this function returns empty error set for some reason..
+    // we handle all 0 of those errors
+    const skey = sign.SecretKey.fromBytes(secret.value) catch |e| switch (e) {};
+    const pkey = sign.PublicKey.fromBytes(skey.publicKeyBytes()) catch |e| switch (e) {
+        error.NonCanonical => return e,
+    };
     const signature = sign.Signature.fromBytes(session.signature.value);
     const payload_bytes = std.mem.asBytes(&session.payload);
-    signature.verify(payload_bytes, pkey) catch return null;
+    signature.verify(payload_bytes, pkey) catch |e| switch (e) {
+        error.SignatureVerificationFailed => return null,
+        error.NonCanonical => return error.NonCanonical,
+        error.InvalidEncoding => return error.InvalidEncoding,
+        error.IdentityElement => return error.IdentityElement,
+        error.WeakPublicKey => return error.WeakPublicKey,
+    };
     return session.payload.user_id;
 }
 
@@ -81,7 +93,7 @@ fn hotp(key: []const u8, counter: u64, digit: u32) u32 {
         @as(u8, @truncate(counter >> 24)),
         @as(u8, @truncate(counter >> 16)),
         @as(u8, @truncate(counter >> 8)),
-        @as(u8, @truncate(counter)),
+        @as(u8, @truncate(counter >> 0)),
     };
 
     HmacSha1.create(hmac[0..], counter_bytes[0..], key);
@@ -89,7 +101,7 @@ fn hotp(key: []const u8, counter: u64, digit: u32) u32 {
     const offset = hmac[hmac.len - 1] & 0xf;
     const bin_code = hmac[offset .. offset + 4];
     const int_code =
-        @as(u32, bin_code[3]) |
+        @as(u32, bin_code[3]) << 0 |
         @as(u32, bin_code[2]) << 8 |
         @as(u32, bin_code[1]) << 16 |
         @as(u32, bin_code[0]) << 24 & 0x7FFFFFFF;
@@ -106,14 +118,14 @@ test "hotp test" {
 }
 
 /// Note: secret is already base32 decoded here
-fn totp(secret: []const u8, t: i64, digit: u32, period: u32) !u32 {
+fn totp(secret: []const u8, t: i64, digit: u32, period: u32) u32 {
     const counter = @divFloor(t, period);
     return hotp(secret, @as(u64, @bitCast(counter)), digit);
 }
 
-pub fn validateOtpCode(user: User, code: []const u8) !bool {
+pub fn checkOtpCodeIsValid(user: User, code: []const u8) bool {
     const time = std.time.timestamp();
-    const local_code = try totp(&user.otp_secret.value, time, 6, 30);
+    const local_code = totp(&user.otp_secret.value, time, 6, 30);
     const remote_code = std.fmt.parseInt(u32, code, 10) catch |e| {
         switch (e) {
             error.Overflow,
@@ -136,7 +148,7 @@ test "totp test" {
         defer testing.allocator.free(secret);
         try testing.expectEqual(
             @as(u32, 473526),
-            try totp(secret, 1662681600, 6, 30),
+            totp(secret, 1662681600, 6, 30),
         );
     }
     {
@@ -144,7 +156,7 @@ test "totp test" {
         defer testing.allocator.free(secret);
         try testing.expectEqual(
             @as(u32, 29283),
-            try totp(secret, 1650183739, 6, 30),
+            totp(secret, 1650183739, 6, 30),
         );
     }
 }
