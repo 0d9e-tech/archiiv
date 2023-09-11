@@ -14,15 +14,15 @@ const Session = cryptoh.Session;
 const b64h = @import("base64_helper.zig");
 
 // inlined to catch the error return trace from caller
-pub inline fn serverErr(err: anyerror, res: *Server.Response) void {
+pub inline fn serverErr(res: *Server.Response, err: anyerror) void {
     log.err("unhandled server error: {s}", .{@errorName(err)});
     if (@errorReturnTrace()) |trace| { // logs error return trace if we have debug info
         std.debug.dumpStackTrace(trace.*);
     }
-    return bad(res, .internal_server_error);
+    return setStatus(res, .internal_server_error);
 }
 
-pub fn bad(res: *Server.Response, status: http.Status) void {
+pub fn setStatus(res: *Server.Response, status: http.Status) void {
     // prints helpful stack trace for debugging but spams the log a lot
     //log.debug("request declared bad", .{});
     //std.debug.dumpCurrentStackTrace(null);
@@ -86,6 +86,10 @@ pub fn getSessionCookie(alc: Alc, headers: http.Headers) !?Session {
     const our_cookie_value = our_cookie[22..];
 
     return b64h.deserialise(Session, alc, our_cookie_value);
+}
+
+pub fn openUserDirectory(root: fs.Dir, name: []const u8) !fs.Dir {
+    return try root.openDir(name, .{});
 }
 
 pub fn setSessionCookieLeaky(alc: Alc, headers: *http.Headers, session: Session) !void {

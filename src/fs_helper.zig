@@ -1,5 +1,5 @@
 const std = @import("std");
-const log = std.log.scoped(.fs);
+const log = std.log.scoped(.fs_helper);
 
 const user = @import("user.zig");
 const User = user.User;
@@ -19,8 +19,6 @@ pub fn readConfigLeaky(alc: std.mem.Allocator) !Config {
         }
         break :blk null;
     } orelse "/etc/archiv.json";
-
-    log.debug("Reading config file @ '{s}'", .{conf_path});
 
     const cwd = std.fs.cwd();
     return readFileLeaky(Config, alc, cwd, conf_path);

@@ -1,40 +1,21 @@
 const std = @import("std");
 const log = std.log.scoped(.tree_endpoint);
-const Alc = std.mem.Allocator;
-const Server = std.http.Server;
 const fs = std.fs;
+const http = std.http;
 
-const endpointh = @import("endpoint_helper.zig");
-const bad = endpointh.bad;
+pub fn handle(user_dir: fs.Dir, path: []const u8, sink: anytype) !http.Status {
+    var target_dir = try user_dir.openIterableDir(
+        if (path.len == 0) "./" else path,
+        .{},
+    );
+    defer target_dir.close();
 
-pub fn handle(res: *Server.Response, alc: Alc, root: fs.Dir, path: []const u8) void {
-    return handleInner(res, alc, root, path) catch |e| return endpointh.serverErr(e, res);
+    try constructJson(&target_dir, sink);
+
+    return .ok;
 }
 
-pub fn handleInner(res: *Server.Response, alc: Alc, root: fs.Dir, path: []const u8) !void {
-    if (try endpointh.getUserFromHeadersLeaky(alc, res.request.headers, root)) |user| {
-        var user_dir = try root.openDir(user.name, .{});
-        defer user_dir.close();
-
-        var target_dir = try user_dir.openIterableDir(
-            if (path.len == 0) "./" else path,
-            .{},
-        );
-        defer target_dir.close();
-
-        res.transfer_encoding = .chunked;
-        try res.do();
-        try res.headers.append("Content-Type", "application/json");
-        try res.headers.append("Connection", "close");
-        var buffered = std.io.bufferedWriter(res.writer());
-        try constructJsonLeaky(&target_dir, buffered.writer());
-        try res.finish();
-    } else {
-        return bad(res, .unauthorized);
-    }
-}
-
-fn constructJsonLeaky(root: *fs.IterableDir, sink: anytype) !void {
+fn constructJson(root: *fs.IterableDir, sink: anytype) !void {
     var jws = std.json.writeStream(sink, .{});
     var itr = root.iterate();
     try jws.beginArray();
@@ -43,3 +24,4 @@ fn constructJsonLeaky(root: *fs.IterableDir, sink: anytype) !void {
     }
     try jws.endArray();
 }
+
