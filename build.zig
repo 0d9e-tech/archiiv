@@ -10,6 +10,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    exe.linkSystemLibrary2("MagickWand", .{ .needed = true, .use_pkg_config = .force });
 
     b.installArtifact(exe);
 
