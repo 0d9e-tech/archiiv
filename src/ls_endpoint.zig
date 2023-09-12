@@ -2,8 +2,12 @@ const std = @import("std");
 const log = std.log.scoped(.tree_endpoint);
 const fs = std.fs;
 const http = std.http;
+const Alc = std.mem.Allocator;
+const endpointh = @import("endpoint_helper.zig");
 
-pub fn handle(user_dir: fs.Dir, path: []const u8, sink: anytype) !http.Status {
+pub fn handle(alc: Alc, user_dir: fs.Dir, dangerous_path: []const u8, sink: anytype) !http.Status {
+    const path = try endpointh.validatePath(alc, dangerous_path) orelse return .forbidden;
+
     var target_dir = user_dir.openIterableDir(
         if (path.len == 0) "./" else path,
         .{},

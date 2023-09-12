@@ -106,7 +106,7 @@ fn dispatchToHandler(alc: Alc, res_: Server.Response, root: fs.Dir) !void {
     // upload endpoint is the only one that reads from the request
     if (mem.eql(u8, endpoint_name, "upload")) {
         const payload = try res.reader().readAllAlloc(alc, std.math.maxInt(usize));
-        const status = try uploadEndpoint(user_dir, path_rest, payload);
+        const status = try uploadEndpoint(alc, user_dir, path_rest, payload);
         return setStatus(&res, status);
     }
 
@@ -118,7 +118,7 @@ fn dispatchToHandler(alc: Alc, res_: Server.Response, root: fs.Dir) !void {
 
     // call the handler
     const status = if (mem.eql(u8, endpoint_name, "ls"))
-        try lsEndpoint(user_dir, path_rest, writer)
+        try lsEndpoint(alc, user_dir, path_rest, writer)
     else if (mem.eql(u8, endpoint_name, "whoami"))
         try whoamiEndpoint(user, path_rest, writer)
     else

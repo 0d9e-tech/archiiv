@@ -101,3 +101,13 @@ pub fn setSessionCookieLeaky(alc: Alc, headers: *http.Headers, session: Session)
 
     return headers.append("Set-Cookie", cookie_header.items);
 }
+
+pub fn validatePath(alc: Alc, path: []const u8) Alc.Error!?[]u8 {
+    const resolved_path = try std.fs.path.resolvePosix(alc, &[_][]const u8{path});
+
+    // forbid absolute paths or paths that travel up the dir tree
+    if (resolved_path[0] == '/' or resolved_path[0] == '.') {
+        return null;
+    }
+    return resolved_path;
+}
