@@ -86,7 +86,7 @@ fn dispatchToHandler(alc: Alc, res_: Server.Response, root: fs.Dir) !void {
     // local copy; res is in the waited state
     var res = res_;
     assert(res.state == .waited);
-    var path = stripQuerryAndFragment(res.request.target);
+    var path = stripQueryAndFragment(res.request.target);
 
     var path_iter = mem.splitScalar(u8, path[1..], '/');
     const endpoint_name = path_iter.next() orelse return setStatus(&res, .bad_request);
@@ -130,7 +130,7 @@ fn dispatchToHandler(alc: Alc, res_: Server.Response, root: fs.Dir) !void {
     try res.finish();
 }
 
-fn stripQuerryAndFragment(path_: []const u8) []const u8 {
+fn stripQueryAndFragment(path_: []const u8) []const u8 {
     var path = path_;
     // Strip fragment (can it even be here?)
     if (mem.indexOfScalar(u8, path, '#')) |fragment_start| {
@@ -138,8 +138,8 @@ fn stripQuerryAndFragment(path_: []const u8) []const u8 {
     }
 
     // Strip query
-    if (mem.indexOfScalar(u8, path, '?')) |querry_start| {
-        path = path[0..querry_start];
+    if (mem.indexOfScalar(u8, path, '?')) |query_start| {
+        path = path[0..query_start];
     }
 
     return path;
