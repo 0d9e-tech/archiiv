@@ -125,7 +125,10 @@ fn totp(secret: []const u8, t: i64, digit: u32, period: u32) u32 {
 
 pub fn checkOtpCodeIsValid(user: User, code: []const u8) bool {
     const time = std.time.timestamp();
-    const local_code = totp(&user.otp_secret.value, time, 6, 30);
+    const interval: i32 = 30;
+    const digits: i32 = 6;
+    const local_code_prev = totp(&user.otp_secret.value, time - interval, digits, interval);
+    const local_code_now = totp(&user.otp_secret.value, time, digits, interval);
     const remote_code = std.fmt.parseInt(u32, code, 10) catch |e| {
         switch (e) {
             error.Overflow,
@@ -133,7 +136,8 @@ pub fn checkOtpCodeIsValid(user: User, code: []const u8) bool {
             => return false,
         }
     };
-    return local_code == remote_code;
+    // We accept the previous code aswell
+    return remote_code == local_code_now or remote_code == local_code_prev;
 }
 
 pub fn generateOtpSecret() OTPSecret {
