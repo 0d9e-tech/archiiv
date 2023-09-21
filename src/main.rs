@@ -1,3 +1,5 @@
+#![feature(async_fn_in_trait)]
+
 mod consts;
 mod global;
 mod routes;
@@ -17,8 +19,9 @@ use tokio::{
     signal::unix::{signal, SignalKind},
 };
 use tower_http::cors::{AllowHeaders, CorsLayer};
+use utils::handle_method_not_allowed;
 
-use crate::global::Global;
+use crate::{global::Global, utils::handle_404};
 
 #[tokio::main]
 async fn main() {
@@ -31,6 +34,7 @@ async fn main() {
 
     let app = create_app(Arc::clone(&global))
         .with_state(Arc::clone(&global))
+        .fallback(handle_404)
         .layer(CorsLayer::permissive().allow_headers(AllowHeaders::mirror_request()));
     let server = axum::Server::bind(&addr);
     println!("Listening on {}", addr);
@@ -57,7 +61,8 @@ fn create_app(global: Arc<Global>) -> axr::Router<Arc<Global>> {
     axr::Router::new()
         .route(
             "/",
-            axr::get(|| async { "Welcome to Archív.\n\ngithub.com.com/0d9e-tech/archiiv-rs" }),
+            axr::get(|| async { "Welcome to Archív.\n\ngithub.com.com/0d9e-tech/archiiv-rs" })
+                .fallback(handle_method_not_allowed),
         )
         .nest("/auth", routes::auth::create_app())
         .nest(

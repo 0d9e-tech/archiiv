@@ -4,20 +4,26 @@ use axum::{
     extract::State,
     http::StatusCode,
     response::{IntoResponse, Response},
-    routing as axr, Extension, Json,
+    routing as axr, Extension,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     global::Global,
-    utils::{err_response, ErrorReason, Username},
+    utils::{err_response, handle_method_not_allowed, ErrorReason, Json, Username},
 };
 
 pub fn create_app() -> axr::Router<Arc<Global>> {
     axr::Router::new()
-        .route("/whoami", axr::get(whoami))
-        .route("/delete-auth-token", axr::post(del_token))
+        .route(
+            "/whoami",
+            axr::get(whoami).fallback(handle_method_not_allowed),
+        )
+        .route(
+            "/delete-auth-token",
+            axr::post(del_token).fallback(handle_method_not_allowed),
+        )
 }
 
 async fn whoami(

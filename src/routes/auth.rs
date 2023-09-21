@@ -7,7 +7,7 @@ use axum::{
     extract::State,
     http::StatusCode,
     response::{IntoResponse, Response},
-    routing as axr, Json,
+    routing as axr,
 };
 use chrono::Utc;
 use rand::{thread_rng, Rng};
@@ -16,13 +16,19 @@ use totp_rs::Secret;
 
 use crate::{
     global::{Global, SessionToken, User},
-    utils::{err_response, ErrorReason},
+    utils::{err_response, handle_method_not_allowed, ErrorReason, Json},
 };
 
 pub fn create_app() -> axr::Router<Arc<Global>> {
     axr::Router::new()
-        .route("/register", axr::post(register))
-        .route("/login", axr::post(login))
+        .route(
+            "/register",
+            axr::post(register).fallback(handle_method_not_allowed),
+        )
+        .route(
+            "/login",
+            axr::post(login).fallback(handle_method_not_allowed),
+        )
 }
 
 async fn register(State(global): State<Arc<Global>>, Json(req): Json<RegisterRequest>) -> Response {
