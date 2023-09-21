@@ -16,6 +16,7 @@ use tokio::{
     select,
     signal::unix::{signal, SignalKind},
 };
+use tower_http::cors::{AllowHeaders, CorsLayer};
 
 use crate::global::Global;
 
@@ -28,7 +29,9 @@ async fn main() {
     let global = Arc::new(Global::load(data_dir.into_boxed_path()));
     let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, global.config.port));
 
-    let app = create_app(Arc::clone(&global)).with_state(Arc::clone(&global));
+    let app = create_app(Arc::clone(&global))
+        .with_state(Arc::clone(&global))
+        .layer(CorsLayer::permissive().allow_headers(AllowHeaders::mirror_request()));
     let server = axum::Server::bind(&addr);
     println!("Listening on {}", addr);
 

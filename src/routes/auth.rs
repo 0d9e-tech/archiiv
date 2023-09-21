@@ -11,6 +11,7 @@ use axum::{
 };
 use chrono::Utc;
 use rand::{thread_rng, Rng};
+use serde::Deserialize;
 use totp_rs::Secret;
 
 use crate::{
@@ -32,8 +33,7 @@ async fn register(State(global): State<Arc<Global>>, Json(req): Json<RegisterReq
         return err_response(StatusCode::FORBIDDEN, ErrorReason::RegistrationDisabled)
             .into_response();
     }
-    let mut user = None;
-    global
+    let user = global
         .modify_users(|us| {
             if let Entry::Vacant(e) = us.entry(req.username.clone()) {
                 let u = User {
@@ -51,8 +51,9 @@ async fn register(State(global): State<Arc<Global>>, Json(req): Json<RegisterReq
                     session_tokens: HashMap::new(),
                 };
                 e.insert(u.clone());
-                user = Some(u);
+                return Some(u);
             }
+            None
         })
         .await;
     match user {
@@ -65,7 +66,7 @@ async fn register(State(global): State<Arc<Global>>, Json(req): Json<RegisterReq
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Deserialize)]
 struct RegisterRequest {
     username: String,
 }
@@ -77,8 +78,7 @@ enum LoginResult {
 }
 
 async fn login(State(global): State<Arc<Global>>, Json(req): Json<LoginRequest>) -> Response {
-    let mut token = LoginResult::IncorrectLoginOrOtp;
-    global
+    let result = global
         .modify_users(|us| {
             if let Some(u) = us.get_mut(&req.username) {
                 if u.otp.check_current(&req.otp).unwrap() {
@@ -87,24 +87,22 @@ async fn login(State(global): State<Arc<Global>>, Json(req): Json<LoginRequest>)
                         .take(32)
                         .map(|c| c as char)
                         .collect::<String>();
-                    match u.session_tokens.entry(req.device_name) {
-                        Entry::Occupied(_) => {
-                            token = LoginResult::DeviceNameExists;
-                            return;
-                        }
+                    return match u.session_tokens.entry(req.device_name) {
+                        Entry::Occupied(_) => LoginResult::DeviceNameExists,
                         Entry::Vacant(e) => {
                             e.insert(SessionToken {
                                 token: s.clone(),
                                 created_on: Utc::now(),
                             });
+                            LoginResult::Ok(s)
                         }
-                    }
-                    token = LoginResult::Ok(s);
+                    };
                 }
             }
+            LoginResult::IncorrectLoginOrOtp
         })
         .await;
-    match token {
+    match result {
         LoginResult::IncorrectLoginOrOtp => {
             err_response(StatusCode::UNAUTHORIZED, ErrorReason::IncorrectLoginOrOtp).into_response()
         }
@@ -119,7 +117,7 @@ async fn login(State(global): State<Arc<Global>>, Json(req): Json<LoginRequest>)
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Deserialize)]
 struct LoginRequest {
     username: String,
     otp: String,

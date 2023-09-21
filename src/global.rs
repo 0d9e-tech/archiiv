@@ -56,14 +56,18 @@ impl Global {
         self.users.read().await
     }
 
-    pub async fn modify_users(&self, f: impl FnOnce(&mut HashMap<String, User>) + Send) {
+    pub async fn modify_users<T: Send>(
+        &self,
+        f: impl FnOnce(&mut HashMap<String, User>) -> T + Send,
+    ) -> T {
         let mut guard = self.users.write().await;
-        f(&mut guard);
+        let res = f(&mut guard);
         let guard = guard.downgrade();
         let path = self.data_dir.join("users.json");
         if let Err(e) = fs::write(&path, serde_json::to_vec_pretty(&*guard).unwrap()).await {
             eprintln!("Failed to write {}: {}", path.display(), e);
         }
+        res
     }
 }
 

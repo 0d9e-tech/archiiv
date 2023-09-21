@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::{
     extract::State,
-    http::{Request, StatusCode},
+    http::{header::AUTHORIZATION, Request, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
     Json,
@@ -26,9 +26,11 @@ pub enum ErrorReason {
     UsernameExists,
     InvalidUsername,
     IncorrectLoginOrOtp,
-    MissingToken,
-    InvalidToken,
+    MissingAuthToken,
+    InvalidAuthToken,
     DeviceNameExists,
+    DeviceNameNotFound,
+    CannotDeleteLastAuthToken,
 }
 
 impl ErrorReason {
@@ -38,9 +40,11 @@ impl ErrorReason {
             Self::UsernameExists => "error.username_exists",
             Self::InvalidUsername => "error.invalid_username",
             Self::IncorrectLoginOrOtp => "error.incorrect_login_or_otp",
-            Self::MissingToken => "error.missing_token",
-            Self::InvalidToken => "error.invalid_token",
+            Self::MissingAuthToken => "error.missing_auth_token",
+            Self::InvalidAuthToken => "error.invalid_auth_token",
             Self::DeviceNameExists => "error.device_name_exists",
+            Self::DeviceNameNotFound => "error.device_name_not_found",
+            Self::CannotDeleteLastAuthToken => "error.cannot_delete_last_auth_token",
         }
     }
 }
@@ -50,12 +54,14 @@ pub async fn auth_middleware<B: Send>(
     mut request: Request<B>,
     next: Next<B>,
 ) -> Response {
-    let Some(auth) = request.headers().get("Authorization") else {
-        return err_response(StatusCode::UNAUTHORIZED, ErrorReason::MissingToken).into_response();
+    let Some(auth) = request.headers().get(AUTHORIZATION) else {
+        return err_response(StatusCode::UNAUTHORIZED, ErrorReason::MissingAuthToken)
+            .into_response();
     };
     let parts = auth.to_str().unwrap().splitn(2, ' ').collect::<Vec<_>>();
     if parts.len() != 2 || parts[0] != "Bearer" {
-        return err_response(StatusCode::UNAUTHORIZED, ErrorReason::InvalidToken).into_response();
+        return err_response(StatusCode::UNAUTHORIZED, ErrorReason::InvalidAuthToken)
+            .into_response();
     }
     let token = parts[1];
     let user = state
@@ -70,7 +76,8 @@ pub async fn auth_middleware<B: Send>(
         })
         .cloned();
     let Some(username) = user else {
-        return err_response(StatusCode::UNAUTHORIZED, ErrorReason::InvalidToken).into_response();
+        return err_response(StatusCode::UNAUTHORIZED, ErrorReason::InvalidAuthToken)
+            .into_response();
     };
     request.extensions_mut().insert(Username(username));
     next.run(request).await
