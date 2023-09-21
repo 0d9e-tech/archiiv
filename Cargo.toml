@@ -1,0 +1,15 @@
+[package]
+edition = "2021"
+name = "archiiv-rs"
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+axum = {version = "0.6.20", features = ["macros"]}
+chrono = {version = "0.4.31", features = ["serde"]}
+rand = "0.8.5"
+serde = {version = "1.0.188", features = ["derive"]}
+serde_json = "1.0.107"
+tokio = {version = "1.32.0", features = ["fs", "macros", "rt-multi-thread", "signal"]}
+totp-rs = { version = "5.3.0", features = ["gen_secret", "serde_support", "otpauth"] }
