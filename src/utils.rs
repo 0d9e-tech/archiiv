@@ -45,6 +45,7 @@ pub enum ErrorReason {
     Error500,
     NetworkError,
     MalformedRequest,
+    InvalidPath,
 
     // Registration
     RegistrationDisabled,
@@ -64,9 +65,12 @@ pub enum ErrorReason {
     CannotDeleteLastAuthToken,
 
     // Upload/mkdir
-    InvalidPath,
     ParentDoesntExist,
     PathExists,
+
+    // Rename
+    /// See docs for [`crate::routes::rename::rename`]
+    InvalidRenameOperation,
 }
 
 impl ErrorReason {
@@ -77,6 +81,7 @@ impl ErrorReason {
             Self::Error500 => "error.generic.500_internal_server_error",
             Self::NetworkError => "error.generic.network_error",
             Self::MalformedRequest => "error.generic.malformed_request",
+            Self::InvalidPath => "error.generic.invalid_path",
 
             Self::RegistrationDisabled => "error.registration.registration_disabled",
             Self::UsernameExists => "error.registration.username_exists",
@@ -91,9 +96,10 @@ impl ErrorReason {
             Self::DeviceNameNotFound => "error.delete_token.device_name_not_found",
             Self::CannotDeleteLastAuthToken => "error.delete_token.cannot_delete_last_auth_token",
 
-            Self::InvalidPath => "error.upload.invalid_path",
             Self::ParentDoesntExist => "error.upload.parent_doesnt_exist",
             Self::PathExists => "error.upload.path_exists",
+
+            Self::InvalidRenameOperation => "error.rename.invalid_rename_operation",
         }
     }
 }
@@ -173,7 +179,7 @@ impl ResponseForPanic for PanicHandler {
 }
 
 pub fn sanitize_path(
-    username: String,
+    username: &str,
     global: &Global,
     path: impl AsRef<OsStr>,
 ) -> Result<PathBuf, Response> {

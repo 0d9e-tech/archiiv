@@ -25,7 +25,7 @@ pub async fn get_file(
     Extension(Username(username)): Extension<Username>,
     axum::extract::Path(file): axum::extract::Path<String>,
 ) -> Response {
-    let path = match sanitize_path(username, &global, file) {
+    let path = match sanitize_path(&username, &global, file) {
         Ok(x) => x,
         Err(e) => return e,
     };
@@ -33,13 +33,15 @@ pub async fn get_file(
     let file = match File::open(&path).await {
         Ok(f) => f,
         Err(e) => {
-            let (code, reason) =
-                if e.kind() == ErrorKind::NotFound || e.kind() == ErrorKind::NotADirectory {
+            let (code, reason) = match e.kind() {
+                ErrorKind::NotFound | ErrorKind::NotADirectory => {
                     (StatusCode::NOT_FOUND, ErrorReason::NotFound404)
-                } else {
+                }
+                _ => {
                     eprintln!("{e}");
                     (StatusCode::INTERNAL_SERVER_ERROR, ErrorReason::Error500)
-                };
+                }
+            };
             return err_response(code, reason).into_response();
         }
     };
@@ -59,7 +61,7 @@ pub async fn get_meta(
     Extension(Username(username)): Extension<Username>,
     axum::extract::Path(file): axum::extract::Path<String>,
 ) -> Response {
-    let path = match sanitize_path(username, &global, file) {
+    let path = match sanitize_path(&username, &global, file) {
         Ok(x) => x,
         Err(e) => return e,
     };
@@ -67,13 +69,15 @@ pub async fn get_meta(
     let meta = match fs::metadata(&path).await {
         Ok(f) => f,
         Err(e) => {
-            let (code, reason) =
-                if e.kind() == ErrorKind::NotFound || e.kind() == ErrorKind::NotADirectory {
+            let (code, reason) = match e.kind() {
+                ErrorKind::NotFound | ErrorKind::NotADirectory => {
                     (StatusCode::NOT_FOUND, ErrorReason::NotFound404)
-                } else {
+                }
+                _ => {
                     eprintln!("{e}");
                     (StatusCode::INTERNAL_SERVER_ERROR, ErrorReason::Error500)
-                };
+                }
+            };
             return err_response(code, reason).into_response();
         }
     };

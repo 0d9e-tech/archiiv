@@ -14,6 +14,7 @@ use crate::{
     global::Global,
     routes::{
         get_file::{get_file, get_meta},
+        rename::rename,
         upload::{mkdir, upload},
     },
     utils::{err_response, handle_method_not_allowed, ErrorReason, Json, Username},
@@ -39,6 +40,10 @@ pub fn create_app() -> axr::Router<Arc<Global>> {
         .route(
             "/mkdir",
             axr::post(mkdir).fallback(handle_method_not_allowed),
+        )
+        .route(
+            "/rename",
+            axr::post(rename).fallback(handle_method_not_allowed),
         )
         .route(
             "/meta/*path",

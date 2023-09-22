@@ -23,7 +23,7 @@ pub async fn upload(
     axum::extract::Path(file): axum::extract::Path<String>,
     stream: BodyStream,
 ) -> Response {
-    let path = match sanitize_path(username, &global, file) {
+    let path = match sanitize_path(&username, &global, file) {
         Ok(x) => x,
         Err(e) => return e,
     };
@@ -70,7 +70,7 @@ pub async fn mkdir(
     Extension(Username(username)): Extension<Username>,
     Json(query): Json<MkDirRequest>,
 ) -> Response {
-    let path = match sanitize_path(username, &global, query.path) {
+    let path = match sanitize_path(&username, &global, query.path) {
         Ok(x) => x,
         Err(e) => return e,
     };
