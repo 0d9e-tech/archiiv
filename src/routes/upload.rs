@@ -1,4 +1,4 @@
-use std::{io::ErrorKind, path::Path, sync::Arc};
+use std::{io::ErrorKind, sync::Arc};
 
 use axum::{
     extract::{BodyStream, State},
@@ -7,47 +7,25 @@ use axum::{
     Extension,
 };
 use futures_util::TryStreamExt;
-use serde::Deserialize;
 use serde_json::json;
 use tokio::fs::File;
 use tokio_util::io::StreamReader;
 
 use crate::{
     global::Global,
-    utils::{err_response, err_response_with_info, ErrorReason, Json, Query, Username},
+    utils::{err_response, sanitize_path, ErrorReason, Json, Username},
 };
 
-#[axum::debug_handler]
 pub async fn upload(
     State(global): State<Arc<Global>>,
     Extension(Username(username)): Extension<Username>,
-    Query(UploadQuery { file }): Query<UploadQuery>,
+    axum::extract::Path(file): axum::extract::Path<String>,
     stream: BodyStream,
 ) -> Response {
-    let Ok(sanitized_filename) = Path::new(&file).strip_prefix("/") else {
-        return err_response_with_info(
-            StatusCode::BAD_REQUEST,
-            ErrorReason::InvalidPath,
-            "Path must start with /",
-        )
-        .into_response();
+    let path = match sanitize_path(username, &global, file) {
+        Ok(x) => x,
+        Err(e) => return e,
     };
-    if !sanitized_filename
-        .components()
-        .all(|c| matches!(c, std::path::Component::Normal(_)))
-    {
-        return err_response_with_info(
-            StatusCode::BAD_REQUEST,
-            ErrorReason::InvalidPath,
-            "Path can't contain `..` or `/./`",
-        )
-        .into_response();
-    }
-    let mut path = global.data_dir.to_path_buf();
-    path.push("users");
-    path.push(username);
-    path = path.join(sanitized_filename);
-
     eprintln!("Uploading to {}", path.display());
     let mut file = match File::options()
         .create_new(true)
@@ -82,9 +60,4 @@ pub async fn upload(
         "ok": true
     }))
     .into_response()
-}
-
-#[derive(Deserialize)]
-pub struct UploadQuery {
-    file: String,
 }

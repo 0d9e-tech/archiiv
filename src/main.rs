@@ -78,7 +78,7 @@ fn create_app(global: Arc<Global>) -> axr::Router<Arc<Global>> {
         )
 }
 
-async fn ensure_dirs(global: &Arc<Global>) {
+async fn ensure_dirs(global: &Global) {
     let tmp = global.data_dir.join("_tmp");
     if let Err(e) = fs::remove_dir_all(&tmp) {
         assert!(

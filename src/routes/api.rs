@@ -16,6 +16,8 @@ use crate::{
     utils::{err_response, handle_method_not_allowed, ErrorReason, Json, Username},
 };
 
+use super::get_file::get_file;
+
 pub fn create_app() -> axr::Router<Arc<Global>> {
     axr::Router::new()
         .route(
@@ -27,8 +29,9 @@ pub fn create_app() -> axr::Router<Arc<Global>> {
             axr::post(del_token).fallback(handle_method_not_allowed),
         )
         .route(
-            "/upload",
-            axr::post(upload)
+            "/f/*path",
+            axr::get(get_file)
+                .post(upload)
                 .layer(DefaultBodyLimit::max(UPLOAD_LIMIT_BYTES))
                 .fallback(handle_method_not_allowed),
         )

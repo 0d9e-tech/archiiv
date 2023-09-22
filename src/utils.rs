@@ -1,5 +1,7 @@
 use std::{
     any::{Any, TypeId},
+    ffi::OsStr,
+    path::{Path, PathBuf},
     sync::Arc,
 };
 
@@ -145,6 +147,38 @@ pub async fn handle_method_not_allowed() -> impl IntoResponse {
         StatusCode::METHOD_NOT_ALLOWED,
         ErrorReason::MethodNotAllowed405,
     )
+}
+
+pub fn sanitize_path(
+    username: String,
+    global: &Global,
+    path: impl AsRef<OsStr>,
+) -> Result<PathBuf, Response> {
+    let sanitized_filename = Path::new(&path);
+    // .strip_prefix("/").map_err(|_| {
+    //     err_response_with_info(
+    //         StatusCode::BAD_REQUEST,
+    //         ErrorReason::InvalidPath,
+    //         "Path must start with /",
+    //     )
+    //     .into_response()
+    // })?;
+
+    if !sanitized_filename
+        .components()
+        .all(|c| matches!(c, std::path::Component::Normal(_)))
+    {
+        return Err(err_response_with_info(
+            StatusCode::BAD_REQUEST,
+            ErrorReason::InvalidPath,
+            "Path can't contain `..` or `/./`",
+        )
+        .into_response());
+    }
+    let mut path = global.data_dir.to_path_buf();
+    path.push("users");
+    path.push(username);
+    Ok(path.join(sanitized_filename))
 }
 
 /// Custom Json request extractor + response creator which returns all extraction errors as JSON response
