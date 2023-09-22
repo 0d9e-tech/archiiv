@@ -66,10 +66,10 @@ pub enum ErrorReason {
     DeviceNameNotFound,
     CannotDeleteLastAuthToken,
 
-    // Upload
+    // Upload/mkdir
     InvalidPath,
-    DirectoryDoesntExist,
-    FileExists,
+    ParentDoesntExist,
+    PathExists,
 }
 
 impl ErrorReason {
@@ -95,8 +95,8 @@ impl ErrorReason {
             Self::CannotDeleteLastAuthToken => "error.delete_token.cannot_delete_last_auth_token",
 
             Self::InvalidPath => "error.upload.invalid_path",
-            Self::DirectoryDoesntExist => "error.upload.directory_doesnt_exist",
-            Self::FileExists => "error.upload.file_exists",
+            Self::ParentDoesntExist => "error.upload.parent_doesnt_exist",
+            Self::PathExists => "error.upload.path_exists",
         }
     }
 }
@@ -155,14 +155,6 @@ pub fn sanitize_path(
     path: impl AsRef<OsStr>,
 ) -> Result<PathBuf, Response> {
     let sanitized_filename = Path::new(&path);
-    // .strip_prefix("/").map_err(|_| {
-    //     err_response_with_info(
-    //         StatusCode::BAD_REQUEST,
-    //         ErrorReason::InvalidPath,
-    //         "Path must start with /",
-    //     )
-    //     .into_response()
-    // })?;
 
     if !sanitized_filename
         .components()
@@ -171,7 +163,7 @@ pub fn sanitize_path(
         return Err(err_response_with_info(
             StatusCode::BAD_REQUEST,
             ErrorReason::InvalidPath,
-            "Path can't contain `..` or `/./`",
+            "Path can't contain `..` or `/./`, or start with `/`",
         )
         .into_response());
     }

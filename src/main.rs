@@ -1,4 +1,5 @@
 #![feature(async_fn_in_trait)]
+#![feature(io_error_more)]
 
 mod consts;
 mod global;

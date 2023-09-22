@@ -12,11 +12,12 @@ use serde::{Deserialize, Serialize};
 use crate::{
     consts::UPLOAD_LIMIT_BYTES,
     global::Global,
-    routes::upload::upload,
+    routes::{
+        get_file::get_file,
+        upload::{mkdir, upload},
+    },
     utils::{err_response, handle_method_not_allowed, ErrorReason, Json, Username},
 };
-
-use super::get_file::get_file;
 
 pub fn create_app() -> axr::Router<Arc<Global>> {
     axr::Router::new()
@@ -34,6 +35,10 @@ pub fn create_app() -> axr::Router<Arc<Global>> {
                 .post(upload)
                 .layer(DefaultBodyLimit::max(UPLOAD_LIMIT_BYTES))
                 .fallback(handle_method_not_allowed),
+        )
+        .route(
+            "/mkdir",
+            axr::post(mkdir).fallback(handle_method_not_allowed),
         )
 }
 

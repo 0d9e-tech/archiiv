@@ -7,6 +7,7 @@ use axum::{
     Extension,
 };
 use futures_util::TryStreamExt;
+use serde::Deserialize;
 use serde_json::json;
 use tokio::fs::File;
 use tokio_util::io::StreamReader;
@@ -26,7 +27,7 @@ pub async fn upload(
         Ok(x) => x,
         Err(e) => return e,
     };
-    eprintln!("Uploading to {}", path.display());
+    eprintln!("upload:{}", path.display());
     let mut file = match File::options()
         .create_new(true)
         .write(true)
@@ -36,8 +37,10 @@ pub async fn upload(
         Ok(f) => f,
         Err(e) => {
             let (code, reason) = match e.kind() {
-                ErrorKind::NotFound => (StatusCode::BAD_REQUEST, ErrorReason::DirectoryDoesntExist),
-                ErrorKind::AlreadyExists => (StatusCode::BAD_REQUEST, ErrorReason::FileExists),
+                ErrorKind::NotFound => (StatusCode::BAD_REQUEST, ErrorReason::ParentDoesntExist),
+                ErrorKind::AlreadyExists | ErrorKind::NotADirectory => {
+                    (StatusCode::BAD_REQUEST, ErrorReason::PathExists)
+                }
                 _ => {
                     eprintln!("{e}");
                     (StatusCode::INTERNAL_SERVER_ERROR, ErrorReason::Error500)
@@ -60,4 +63,38 @@ pub async fn upload(
         "ok": true
     }))
     .into_response()
+}
+
+pub async fn mkdir(
+    State(global): State<Arc<Global>>,
+    Extension(Username(username)): Extension<Username>,
+    Json(query): Json<MkDirRequest>,
+) -> Response {
+    let path = match sanitize_path(username, &global, query.path) {
+        Ok(x) => x,
+        Err(e) => return e,
+    };
+    eprintln!("mkdir:{}", path.display());
+    if let Err(e) = tokio::fs::create_dir(&path).await {
+        let (code, reason) = match e.kind() {
+            ErrorKind::NotFound => (StatusCode::BAD_REQUEST, ErrorReason::ParentDoesntExist),
+            ErrorKind::AlreadyExists | ErrorKind::NotADirectory => {
+                (StatusCode::BAD_REQUEST, ErrorReason::PathExists)
+            }
+            _ => {
+                eprintln!("{e}");
+                (StatusCode::INTERNAL_SERVER_ERROR, ErrorReason::Error500)
+            }
+        };
+        return err_response(code, reason).into_response();
+    }
+    Json(json!({
+        "ok": true
+    }))
+    .into_response()
+}
+
+#[derive(Deserialize)]
+pub struct MkDirRequest {
+    path: String,
 }

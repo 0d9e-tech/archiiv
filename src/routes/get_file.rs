@@ -3,7 +3,10 @@ use std::{io::ErrorKind, sync::Arc};
 use axum::{
     body::StreamBody,
     extract::State,
-    http::StatusCode,
+    http::{
+        header::{CONTENT_LENGTH, CONTENT_TYPE},
+        StatusCode,
+    },
     response::{IntoResponse, Response},
     Extension,
 };
@@ -24,6 +27,7 @@ pub async fn get_file(
         Ok(x) => x,
         Err(e) => return e,
     };
+    eprintln!("get_file:{}", path.display());
     let file = match File::open(&path).await {
         Ok(f) => f,
         Err(e) => {
@@ -36,10 +40,13 @@ pub async fn get_file(
             return err_response(code, reason).into_response();
         }
     };
+    let len = file.metadata().await.unwrap().len();
     let mut resp = StreamBody::new(ReaderStream::new(file)).into_response();
+    resp.headers_mut()
+        .insert(CONTENT_LENGTH, len.to_string().parse().unwrap());
     if let Some(mime) = mime_guess::from_path(path).first() {
         resp.headers_mut()
-            .insert("Content-Type", mime.to_string().parse().unwrap());
+            .insert(CONTENT_TYPE, mime.to_string().parse().unwrap());
     }
-    resp
+    dbg!(resp)
 }
