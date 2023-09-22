@@ -4,7 +4,10 @@ use std::{
 };
 
 use axum::{
-    extract::{rejection::JsonRejection, FromRequest, State},
+    extract::{
+        rejection::{JsonRejection, QueryRejection},
+        FromRequest, FromRequestParts, State,
+    },
     http::{header::AUTHORIZATION, Request, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
@@ -60,25 +63,38 @@ pub enum ErrorReason {
     // Delete token
     DeviceNameNotFound,
     CannotDeleteLastAuthToken,
+
+    // Upload
+    InvalidPath,
+    DirectoryDoesntExist,
+    FileExists,
 }
 
 impl ErrorReason {
     pub const fn s(self) -> &'static str {
         match self {
-            Self::NotFound404 => "error.404_not_found",
-            Self::MethodNotAllowed405 => "error.405_method_not_allowed",
-            Self::Error500 => "error.500_internal_server_error",
-            Self::NetworkError => "error.network_error",
-            Self::MalformedRequest => "error.malformed_request",
-            Self::RegistrationDisabled => "error.registration_disabled",
-            Self::UsernameExists => "error.username_exists",
-            Self::InvalidUsername => "error.invalid_username",
-            Self::IncorrectLoginOrOtp => "error.incorrect_login_or_otp",
-            Self::MissingAuthToken => "error.missing_auth_token",
-            Self::InvalidAuthToken => "error.invalid_auth_token",
-            Self::DeviceNameExists => "error.device_name_exists",
-            Self::DeviceNameNotFound => "error.device_name_not_found",
-            Self::CannotDeleteLastAuthToken => "error.cannot_delete_last_auth_token",
+            Self::NotFound404 => "error.generic.404_not_found",
+            Self::MethodNotAllowed405 => "error.generic.405_method_not_allowed",
+            Self::Error500 => "error.generic.500_internal_server_error",
+            Self::NetworkError => "error.generic.network_error",
+            Self::MalformedRequest => "error.generic.malformed_request",
+
+            Self::RegistrationDisabled => "error.registration.registration_disabled",
+            Self::UsernameExists => "error.registration.username_exists",
+            Self::InvalidUsername => "error.registration.invalid_username",
+
+            Self::IncorrectLoginOrOtp => "error.login.incorrect_login_or_otp",
+            Self::DeviceNameExists => "error.login.device_name_exists",
+
+            Self::MissingAuthToken => "error.auth.missing_auth_token",
+            Self::InvalidAuthToken => "error.auth.invalid_auth_token",
+
+            Self::DeviceNameNotFound => "error.delete_token.device_name_not_found",
+            Self::CannotDeleteLastAuthToken => "error.delete_token.cannot_delete_last_auth_token",
+
+            Self::InvalidPath => "error.upload.invalid_path",
+            Self::DirectoryDoesntExist => "error.upload.directory_doesnt_exist",
+            Self::FileExists => "error.upload.file_exists",
         }
     }
 }
@@ -170,10 +186,13 @@ where
                 ErrorReason::MalformedRequest,
                 e.body_text(),
             )),
-            Err(_) => Err(err_response(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                ErrorReason::Error500,
-            )),
+            Err(e) => {
+                eprintln!("{e}");
+                Err(err_response(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    ErrorReason::Error500,
+                ))
+            }
         }
     }
 }
@@ -184,5 +203,41 @@ where
 {
     fn into_response(self) -> Response {
         axum::Json(self.0).into_response()
+    }
+}
+
+/// Custom Query request extractor
+///
+/// Adapted in similar fashion as Json above
+pub struct Query<T>(pub T);
+
+#[axum::async_trait]
+impl<T, S> FromRequestParts<S> for Query<T>
+where
+    axum::extract::Query<T>: FromRequestParts<S, Rejection = QueryRejection>,
+    S: Send + Sync,
+{
+    type Rejection = (StatusCode, Json<JsonValue>);
+
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        state: &S,
+    ) -> Result<Self, Self::Rejection> {
+        let res = axum::extract::Query::<T>::from_request_parts(parts, state).await;
+        match res {
+            Ok(x) => Ok(Self(x.0)),
+            Err(QueryRejection::FailedToDeserializeQueryString(e)) => Err(err_response_with_info(
+                StatusCode::BAD_REQUEST,
+                ErrorReason::MalformedRequest,
+                e.body_text(),
+            )),
+            Err(e) => {
+                eprintln!("{e}");
+                Err(err_response(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    ErrorReason::Error500,
+                ))
+            }
+        }
     }
 }

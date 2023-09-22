@@ -115,11 +115,16 @@ async fn login(State(global): State<Arc<Global>>, Json(req): Json<LoginRequest>)
         LoginResult::DeviceNameExists => {
             err_response(StatusCode::BAD_REQUEST, ErrorReason::DeviceNameExists).into_response()
         }
-        LoginResult::Ok(t) => Json(serde_json::json!({
-            "ok": true,
-            "token": t,
-        }))
-        .into_response(),
+        LoginResult::Ok(t) => {
+            tokio::fs::create_dir_all(global.data_dir.join(format!("users/{}", req.username)))
+                .await
+                .unwrap();
+            Json(serde_json::json!({
+                "ok": true,
+                "token": t,
+            }))
+            .into_response()
+        }
     }
 }
 

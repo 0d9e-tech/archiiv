@@ -1,7 +1,7 @@
-use std::sync::Arc;
+use std::{collections::hash_map::Entry, sync::Arc};
 
 use axum::{
-    extract::State,
+    extract::{DefaultBodyLimit, State},
     http::StatusCode,
     response::{IntoResponse, Response},
     routing as axr, Extension,
@@ -10,7 +10,9 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    consts::UPLOAD_LIMIT_BYTES,
     global::Global,
+    routes::upload::upload,
     utils::{err_response, handle_method_not_allowed, ErrorReason, Json, Username},
 };
 
@@ -23,6 +25,12 @@ pub fn create_app() -> axr::Router<Arc<Global>> {
         .route(
             "/delete-auth-token",
             axr::post(del_token).fallback(handle_method_not_allowed),
+        )
+        .route(
+            "/upload",
+            axr::post(upload)
+                .layer(DefaultBodyLimit::max(UPLOAD_LIMIT_BYTES))
+                .fallback(handle_method_not_allowed),
         )
 }
 
@@ -67,10 +75,12 @@ async fn del_token(
     let result = global
         .modify_users(|us| {
             if let Some(u) = us.get_mut(&username) {
-                if u.session_tokens.len() == 1 {
-                    return DelTokenResult::CannotDeleteLastToken;
-                }
-                if u.session_tokens.remove(&req.device_name).is_some() {
+                let is_last = u.session_tokens.len() == 1;
+                if let Entry::Occupied(e) = u.session_tokens.entry(req.device_name) {
+                    if is_last {
+                        return DelTokenResult::CannotDeleteLastToken;
+                    }
+                    e.remove();
                     return DelTokenResult::Ok;
                 }
             }
