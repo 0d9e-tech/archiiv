@@ -107,13 +107,16 @@ pub async fn get_meta(
                     continue;
                 }
             };
-            results.push(if meta.is_dir() {
+            results.push(if meta.is_file() {
                 MetaItem::Dir { name }
-            } else {
+            } else if meta.is_dir() {
                 MetaItem::File {
                     name,
                     size: meta.len(),
                 }
+            } else {
+                eprintln!("Unknown file type for {name}");
+                continue;
             });
         }
         Json(json!({

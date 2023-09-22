@@ -15,7 +15,7 @@ use crate::{
     routes::{
         get_file::{get_file, get_meta},
         rename::rename,
-        upload::{mkdir, upload},
+        upload::{delete, mkdir, upload},
     },
     utils::{err_response, handle_method_not_allowed, ErrorReason, Json, Username},
 };
@@ -34,6 +34,7 @@ pub fn create_app() -> axr::Router<Arc<Global>> {
             "/f/*path",
             axr::get(get_file)
                 .post(upload)
+                .delete(delete)
                 .layer(DefaultBodyLimit::max(UPLOAD_LIMIT_BYTES))
                 .fallback(handle_method_not_allowed),
         )
