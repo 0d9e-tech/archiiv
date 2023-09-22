@@ -13,7 +13,7 @@ use crate::{
     consts::UPLOAD_LIMIT_BYTES,
     global::Global,
     routes::{
-        get_file::get_file,
+        get_file::{get_file, get_meta},
         upload::{mkdir, upload},
     },
     utils::{err_response, handle_method_not_allowed, ErrorReason, Json, Username},
@@ -39,6 +39,10 @@ pub fn create_app() -> axr::Router<Arc<Global>> {
         .route(
             "/mkdir",
             axr::post(mkdir).fallback(handle_method_not_allowed),
+        )
+        .route(
+            "/meta/*path",
+            axr::get(get_meta).fallback(handle_method_not_allowed),
         )
 }
 

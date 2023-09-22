@@ -16,4 +16,4 @@ serde_json = "^1.0.107"
 tokio = {version = "^1.32.0", features = ["fs", "io-util", "macros", "rt-multi-thread", "signal"]}
 tokio-util = {version = "^0.7.9", features = ["io"]}
 totp-rs = {version = "^5.3.0", features = ["gen_secret", "serde_support", "otpauth"]}
-tower-http = {version = "^0.4.4", features = ["cors"]}
+tower-http = {version = "^0.4.4", features = ["catch-panic", "cors"]}

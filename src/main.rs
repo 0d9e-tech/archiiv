@@ -22,10 +22,15 @@ use tokio::{
     select,
     signal::unix::{signal, SignalKind},
 };
-use tower_http::cors::{AllowHeaders, CorsLayer};
-use utils::handle_method_not_allowed;
+use tower_http::{
+    catch_panic::CatchPanicLayer,
+    cors::{AllowHeaders, CorsLayer},
+};
 
-use crate::{global::Global, utils::handle_404};
+use crate::{
+    global::Global,
+    utils::{handle_404, handle_method_not_allowed, PanicHandler},
+};
 
 #[tokio::main]
 async fn main() {
@@ -40,6 +45,7 @@ async fn main() {
     let app = create_app(Arc::clone(&global))
         .with_state(Arc::clone(&global))
         .fallback(handle_404)
+        .layer(CatchPanicLayer::custom(PanicHandler))
         .layer(CorsLayer::permissive().allow_headers(AllowHeaders::mirror_request()));
     let server = axum::Server::bind(&addr);
     println!("Listening on {}", addr);

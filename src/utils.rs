@@ -1,11 +1,12 @@
 use std::{
-    any::{Any, TypeId},
+    any::Any,
     ffi::OsStr,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
 use axum::{
+    body::BoxBody,
     extract::{
         rejection::{JsonRejection, QueryRejection},
         FromRequest, FromRequestParts, State,
@@ -16,6 +17,7 @@ use axum::{
 };
 use serde::Serialize;
 use serde_json::Value as JsonValue;
+use tower_http::catch_panic::ResponseForPanic;
 
 use crate::global::Global;
 
@@ -28,16 +30,11 @@ pub fn err_response_with_info<T: Serialize + Any>(
     reason: ErrorReason,
     extra_info: T,
 ) -> (StatusCode, Json<JsonValue>) {
-    let mut value = serde_json::json!({
+    let value = serde_json::json!({
         "ok": false,
         "reason": reason.s(),
+        "info": extra_info,
     });
-    if extra_info.type_id() != TypeId::of::<()>() {
-        value
-            .as_object_mut()
-            .unwrap()
-            .insert("info".to_owned(), serde_json::to_value(extra_info).unwrap());
-    }
     (code, Json(value))
 }
 
@@ -147,6 +144,32 @@ pub async fn handle_method_not_allowed() -> impl IntoResponse {
         StatusCode::METHOD_NOT_ALLOWED,
         ErrorReason::MethodNotAllowed405,
     )
+}
+
+#[derive(Clone, Copy)]
+pub struct PanicHandler;
+
+impl ResponseForPanic for PanicHandler {
+    type ResponseBody = BoxBody;
+
+    fn response_for_panic(
+        &mut self,
+        err: Box<dyn Any + Send + 'static>,
+    ) -> axum::http::Response<Self::ResponseBody> {
+        let details = err.downcast::<String>().map_or_else(
+            |err| {
+                err.downcast::<&str>()
+                    .map_or_else(|_| "Unknown panic message", |s| *s)
+                    .to_owned()
+            },
+            |err| *err,
+        );
+        eprintln!("Panic in HTTP handler: {details}");
+        let (parts, body) = err_response(StatusCode::INTERNAL_SERVER_ERROR, ErrorReason::Error500)
+            .into_response()
+            .into_parts();
+        axum::http::Response::from_parts(parts, body)
+    }
 }
 
 pub fn sanitize_path(
