@@ -1,7 +1,9 @@
 const std = @import("std");
+const httpz = @import("httpz");
 const log = std.log.default;
 const fsh = @import("fs_helper.zig");
 const loop = @import("loop.zig").loop;
+const GlobalState = @import("GlobalState.zig");
 
 pub fn main() void {
     // we are a well behaved program
@@ -22,6 +24,9 @@ pub fn main() void {
         log.err("Failed to read config file: {}", .{e});
         return;
     };
+
+    var global_state = GlobalState.init();
+    _ = global_state;
 
     // the directory where archív will operate in
     const root = std.fs.openDirAbsolute(conf.root, .{}) catch |e| {
@@ -48,4 +53,3 @@ fn greet() void {
 fn farewell() void {
     log.info("Farewell", .{});
 }
-

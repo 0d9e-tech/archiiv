@@ -7,10 +7,10 @@ Prokop misc notes
 
 * bez database??
   * dirs, files
-  * */.meta/        * meta info o fotkách (lokace, čas, ..?)
-  * */.thumb/       * thumbnails
-  * */.permissions  * (edit, add, delete, ..?) per user
-  * /.users         * list users, hash hesla?
+  * */.meta/        - meta info o fotkách (lokace, čas, ..?)
+  * */.thumb/       - thumbnails
+  * */.permissions  - (edit, add, delete, ..?) per user
+  * /.users         - list users, hash hesla?
 * link na
   * photo dump do složky
   * photo access

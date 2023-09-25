@@ -1,0 +1,10 @@
+.{
+	.name = "archiiv",
+	.version = "0.0.0",
+	.dependencies = .{
+		.httpz = .{
+			.url = "https://api.github.com/repos/karlseguin/http.zig/tarball/07f8de5adcc8c8443968d22fc11fe52ed3cc1904",
+			.hash = "122068debc3cceb0ca95b0ed252542c1bba1fe423cf43741c3572e30f03a8f6ffa06",
+		}
+	}
+}

@@ -10,7 +10,23 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    exe.linkLibC();
+
+    // imagemagick
     exe.linkSystemLibrary2("MagickWand", .{ .needed = true, .use_pkg_config = .force });
+
+    // ffmpeg things
+    exe.linkSystemLibrary2("libavformat", .{ .needed = true, .use_pkg_config = .force });
+    exe.linkSystemLibrary2("libavcodec", .{ .needed = true, .use_pkg_config = .force });
+    exe.linkSystemLibrary2("libswscale", .{ .needed = true, .use_pkg_config = .force });
+    exe.linkSystemLibrary2("libavutil", .{ .needed = true, .use_pkg_config = .force });
+
+    // http server framework
+    const httpz_dep = b.dependency("httpz", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    exe.addModule("httpz", httpz_dep.module("httpz"));
 
     b.installArtifact(exe);
 

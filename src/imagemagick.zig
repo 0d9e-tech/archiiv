@@ -1,7 +1,7 @@
 const std = @import("std");
 const mw = @cImport(@cInclude("MagickWand/MagickWand.h"));
 
-pub fn generateThumbnail(source: [:0]const u8, dest: [:0]const u8, thumb_height: u32, quality: u32, format: [:0]const u8) !void {
+pub fn generateImageThumbnail(source: [:0]const u8, dest: [:0]const u8, thumb_height: u32, quality: u32, format: [:0]const u8) !void {
     mw.MagickWandGenesis();
     defer mw.MagickWandTerminus();
 
