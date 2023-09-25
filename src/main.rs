@@ -72,7 +72,7 @@ fn create_app(global: Arc<Global>) -> axr::Router<Arc<Global>> {
     axr::Router::new()
         .route(
             "/",
-            axr::get(|| async { "Welcome to Archív.\n\ngithub.com.com/0d9e-tech/archiiv-rs" })
+            axr::get(|| async { "Welcome to Archív.\n\ngithub.com.com/0d9e-tech/archiiv" })
                 .fallback(handle_method_not_allowed),
         )
         .nest("/auth", routes::auth::create_app())
