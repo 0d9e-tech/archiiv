@@ -32,7 +32,10 @@ pub fn create_app() -> axr::Router<Arc<Global>> {
 }
 
 async fn register(State(global): State<Arc<Global>>, Json(req): Json<RegisterRequest>) -> Response {
-    if !req.username.chars().all(|c| c.is_ascii_alphanumeric()) {
+    if !req.username.chars().all(|c| c.is_ascii_alphanumeric())
+        || req.username.len() > 64
+        || req.username.len() < 2
+    {
         return err_response(StatusCode::BAD_REQUEST, ErrorReason::InvalidUsername).into_response();
     }
     if !global.config.enable_registration && global.get_users().await.len() > 0 {

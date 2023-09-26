@@ -62,7 +62,7 @@ async fn main() {
         _ = server.serve(app.into_make_service()) => {
             panic!("Server stopped!");
         }
-        _ = worker::worker(global) => {
+        () = worker::worker(global) => {
             panic!("Worker stopped!");
         }
     };
