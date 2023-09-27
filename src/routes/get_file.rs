@@ -108,12 +108,12 @@ pub async fn get_meta(
                 }
             };
             results.push(if meta.is_file() {
-                MetaItem::Dir { name }
-            } else if meta.is_dir() {
                 MetaItem::File {
                     name,
                     size: meta.len(),
                 }
+            } else if meta.is_dir() {
+                MetaItem::Dir { name }
             } else {
                 eprintln!("Unknown file type for {name}");
                 continue;

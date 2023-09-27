@@ -50,6 +50,13 @@ pub fn create_app() -> axr::Router<Arc<Global>> {
             "/meta/*path",
             axr::get(get_meta).fallback(handle_method_not_allowed),
         )
+        .route(
+            "/meta/",
+            axr::get(|state, extension| {
+                get_meta(state, extension, axum::extract::Path(String::new()))
+            })
+            .fallback(handle_method_not_allowed),
+        )
 }
 
 async fn whoami(
