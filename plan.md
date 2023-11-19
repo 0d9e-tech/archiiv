@@ -6,26 +6,21 @@
 
 ## Mobile app
 
-**Single** task:
+Single task:
 
-* upload of local files to server using **already existing** secure-ftp-style
-  protocol
-  * webdav? <- this might be the thing
-  * smb?
-  * ftps?
-  * sftp?
+* upload of local files to server using webdav
 
 ## Server
 
-**already existing** secure-ftp-style server
+External webdav with multiple users
 
 ## Web view
 
-* pigallery style thing
+* fowards login info to webdav server
+  * webdav server can be running on different server
 * generates everything on demand
-  * (thumbnails cached)
-  * avoids problems with having to refresh when files are uploaded (we dont need
-    a daemon)
+  * thumbnails cached
+  * html not cached
 * has to support most image formats
   * (we dont have a deamon that converts whatever was uploaded to something
     sane)
@@ -36,13 +31,13 @@ just make a standalone thing that manipulates the filesystem and has its own
 interface.
 
 * url to upload things
-  * separate web service that uploads into some directory
   * could literally just be [gimmedat](https://github.com/vakabus/gimmedat)
+  * needs webdav fs mounted but we are going to use this rarely
 * google photos importer
   * just some script that is run manually
 * tool that optimizes random formats of questionable compression ratio uploaded
   from a phone
-  * just some script that is run manually (webview can display the format in any
-    case) (gnu parallel + imagemagick/ffmpeg)
+  * just some shell script (webview can display the format in any case) (gnu
+    parallel + imagemagick/ffmpeg)
   * can be handled manually when disk usage becomes a problem
 
