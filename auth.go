@@ -67,7 +67,7 @@ func (u *User) authPath(path string, pt PermType) error {
 		return nil
 	}
 
-	return errors.New("Unauthorized")
+	return newError(401, "Unauthorized")
 }
 
 func registerAuthEndpoints() {

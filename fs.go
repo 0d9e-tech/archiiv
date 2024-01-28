@@ -79,6 +79,7 @@ func registerFsEndpoints() {
 		err = u.mkdir(d.Path)
 		if err != nil {
 			respondError(err, w)
+			return
 		}
 
 		respondOk(w)
