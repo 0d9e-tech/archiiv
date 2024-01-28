@@ -1,0 +1,5 @@
+{
+    "port": 4432,
+    "data_dir": "test_data_dir",
+    "debug": true
+}
