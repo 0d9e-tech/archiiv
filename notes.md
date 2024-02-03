@@ -51,12 +51,12 @@ the directory.
 
 Hook ideas:
 
------------ --------------------------------------------------------------------------
-Exif        Extracts exif metadata from the file and puts it into the metadata json.
-Thumbnails  Creates thumbnails from the files.
-Archiver    Backups the file or directory in a compressed archive.
-Exec        Executes an external process.
------------ --------------------------------------------------------------------------
+Hook name  | Description
+-----------|--------------------------------------------------------------------------
+Exif       | Extracts exif metadata from the file and puts it into the metadata json.
+Thumbnails | Creates thumbnails from the files.
+Archiver   | Backups the file or directory in a compressed archive.
+Exec       | Executes an external process.
 
 ## API
 
