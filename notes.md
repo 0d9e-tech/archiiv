@@ -3,9 +3,9 @@
 Each file has a UUID. The files are named by their UUID and stored in a flat
 structure in a folder `$AV_ROOT/data`. The metadata json is stored as
 `$AV_ROOT/data/$UUID.json`. A separate file is used to keep track of the folder
-structure. Upload hooks may store their own data in this folder. The
-requirement is that it starts with the UUID of the associated file and does not
-conflict with the file itself or the meta json.
+structure. Upload hooks may store their own data in this folder. The requirement
+is that it starts with the UUID of the associated file and does not conflict
+with the file itself or the meta json.
 
 The advantage of storing the files in a flat structure is that it will make it
 easy to mount them to user's storage. If user wants to share a file, they can
@@ -15,6 +15,60 @@ then just mount the UUID to a folder of their liking.
 ### Tree storage
 
 Tohle nevim jak dobře udělat. Ideas?
+
+### +/-
+
++:
+
+* owner-move is O(1)
+
+-:
+
+* filesystem can't be inspected from a shell
+* reimplementing some functionality that the fs could provide
+
+## Alternative File Storage
+
+### UX
+
+User clicks 'share with' button on some item. The target user receives this item
+in their ~/'shared with me' directory. Archiiv appends \_1, \_2, ... to the
+filename to avoid conflicts.
+
+If the original user deletes the item, all other users that have this shared
+loose the data.
+
+The second user can move the item anywhere they want. It works transparently.
+
+### Implementation
+
+The user drives are mirrored on the filesystem naively `$AV_ROOT/usr/$USER/*`.
+
+There is a list of shared users in the meta file.
+
+When owner shares a file, archiiv creates a pair of bidirectional link files:
+
+* `__av_extern_$FILENAME` in target user's drive. It contains the path of the
+  original file relative to `$AV_ROOT`
+* Next to owners file: `__av_remotes_$FILENAME` contains paths of all
+  `__av_remotes_$FILENAME` files in other user's drives.
+
+Target user can move `__av_extern_$FILENAME` anywhere. The move operation needs
+to update itself in the `av_remotes_$FILENAME`.
+
+Original user can move the file anywhere. The move operation needs to update all
+of the `__av_{extern,remotes}_$FILENAME` files.
+
+### +/-
+
++:
+
+* filesystem can be inspected using a shell
+* tree structure implementation for free
+
+-:
+
+* owner-move operation is linear with the number of shared users.
 
 ## Permissions
 
