@@ -1,12 +1,20 @@
 ## File Storage
 
-File is stored at:
-$AV_ROOT/$USER/some/path/$FILENAME
+Each file has a UUID. The files are named by their UUID and stored in a flat
+structure in a folder `$AV_ROOT/data`. The metadata json is stored as
+`$AV_ROOT/data/$UUID.json`. A separate file is used to keep track of the folder
+structure. Upload hooks may store their own data in this folder. The
+requirement is that it starts with the UUID of the associated file and does not
+conflict with the file itself or the meta json.
 
-File metadata is at:
-$AV_ROOT/$USER/some/path/__av_$FILENAME.json
+The advantage of storing the files in a flat structure is that it will make it
+easy to mount them to user's storage. If user wants to share a file, they can
+add another user the required permissions and send them the UUID. The user will
+then just mount the UUID to a folder of their liking.
 
-Uploading files starting with `__av_` is forbidden.
+### Tree storage
+
+Tohle nevim jak dobře udělat. Ideas?
 
 ## Permissions
 
