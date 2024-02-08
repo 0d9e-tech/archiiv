@@ -1,3 +1,21 @@
+## File Storage
+
+Files are stored in a flat structure in the `/data` directory. Since each file
+has an UUID, the file can be named using that UUID. The metadata is stored as
+`$UUID.json`. Some hooks may have output files. These can be stored in the
+`/data` directory, but they must start with the UUID of the associated file.
+
+The structure of the file tree is stored separately. Currently, for development
+purposes, it will be stored in a simple JSON dictionary in `/tree.json`.
+
+```
+{
+    UUID of a directory: [
+        list of UUIDS in the directory
+    ]
+}
+```
+
 ## Sharing
 
 ### UX
