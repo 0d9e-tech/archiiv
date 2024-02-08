@@ -1,74 +1,29 @@
-## File Storage
-
-Each file has a UUID. The files are named by their UUID and stored in a flat
-structure in a folder `$AV_ROOT/data`. The metadata json is stored as
-`$AV_ROOT/data/$UUID.json`. A separate file is used to keep track of the folder
-structure. Upload hooks may store their own data in this folder. The requirement
-is that it starts with the UUID of the associated file and does not conflict
-with the file itself or the meta json.
-
-The advantage of storing the files in a flat structure is that it will make it
-easy to mount them to user's storage. If user wants to share a file, they can
-add another user the required permissions and send them the UUID. The user will
-then just mount the UUID to a folder of their liking.
-
-### Tree storage
-
-Tohle nevim jak dobře udělat. Ideas?
-
-### +/-
-
-+:
-
-* owner-move is O(1)
-
--:
-
-* filesystem can't be inspected from a shell
-* reimplementing some functionality that the fs could provide
-
-## Alternative File Storage
+## Sharing
 
 ### UX
 
-User clicks 'share with' button on some item. The target user receives this item
-in their ~/'shared with me' directory. Archiiv appends \_1, \_2, ... to the
-filename to avoid conflicts.
+If you want to select the file, the client will allow you to choose what
+people/groups you want to share it with. Then you will get the file's UUID or a
+link, which you can share with the people. When the people receive your UUID,
+they can enter it into their archív client and add the file to any location
+they choose.
 
-If the original user deletes the item, all other users that have this shared
-loose the data.
+This will not create any new copies of the shared file. If someone you shared
+the file with has write permissions and edits the file, others will see the
+changes too. If you want to revoke the file share, you can just remove the read
+and write permissions from the people you don't want to have the file. The
+archív server will recognize this action and remove the file link from the
+user's directory.
 
-The second user can move the item anywhere they want. It works transparently.
+Sharing with other people can be only done by people with the `mw` permission
+bit. Giving this to someone else essentially gives them the ownership of the
+file.
 
 ### Implementation
 
-The user drives are mirrored on the filesystem naively `$AV_ROOT/usr/$USER/*`.
-
-There is a list of shared users in the meta file.
-
-When owner shares a file, archiiv creates a pair of bidirectional link files:
-
-* `__av_extern_$FILENAME` in target user's drive. It contains the path of the
-  original file relative to `$AV_ROOT`
-* Next to owners file: `__av_remotes_$FILENAME` contains paths of all
-  `__av_remotes_$FILENAME` files in other user's drives.
-
-Target user can move `__av_extern_$FILENAME` anywhere. The move operation needs
-to update itself in the `av_remotes_$FILENAME`.
-
-Original user can move the file anywhere. The move operation needs to update all
-of the `__av_{extern,remotes}_$FILENAME` files.
-
-### +/-
-
-+:
-
-* filesystem can be inspected using a shell
-* tree structure implementation for free
-
--:
-
-* owner-move operation is linear with the number of shared users.
+To share files, archív will implement a feature to link to a file by UUID. To
+see how this feature is implemented, refer to the File Storage section of this
+document.
 
 ## Permissions
 
