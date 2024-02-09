@@ -1,20 +1,17 @@
 ## File Storage
 
-Files are stored in a flat structure in the `/data` directory. Since each file
-has an UUID, the file can be named using that UUID. The metadata is stored as
-`$UUID.json`. Some hooks may have output files. These can be stored in the
-`/data` directory, but they must start with the UUID of the associated file.
+Archív has it's own fs, which stores **records** in a single folder in a flat structure.
+Each record has it's own UUID, which matches the Archív file it stores.
 
-The structure of the file tree is stored separately. Currently, for development
-purposes, it will be stored in a simple JSON dictionary in `/tree.json`.
+For each record, there is a file named by it's UUID, which stores a JSON describing
+two things: the record's name and a list of UUIDs. These are UUIDs of the records **mounted**
+to the record.
 
-```
-{
-    UUID of a directory: [
-        list of UUIDS in the directory
-    ]
-}
-```
+Each record can also have **sections**. Those are stored as separate files in the format
+`$UUID.$RECORD_NAME`.
+
+Records are reference counted. If the count reaches zero, the record and all the sections are
+removed from the drive.
 
 ## Sharing
 
@@ -86,12 +83,12 @@ the directory.
 
 Hook ideas:
 
-Hook name  | Description
------------|--------------------------------------------------------------------------
-Exif       | Extracts exif metadata from the file and puts it into the metadata json.
-Thumbnails | Creates thumbnails from the files.
-Archiver   | Backups the file or directory in a compressed archive.
-Exec       | Executes an external process.
+| Hook name  | Description                                                              |
+| ---------- | ------------------------------------------------------------------------ |
+| Exif       | Extracts exif metadata from the file and puts it into the metadata json. |
+| Thumbnails | Creates thumbnails from the files.                                       |
+| Archiver   | Backups the file or directory in a compressed archive.                   |
+| Exec       | Executes an external process.                                            |
 
 ## API
 
@@ -120,7 +117,7 @@ Input:
 { "path": path to directory to create }
 ```
 
-***
+---
 
 # server:
 

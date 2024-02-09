@@ -2,121 +2,188 @@ package main
 
 import (
 	"encoding/json"
-	"log/slog"
-	"net/http"
+	"errors"
 	"os"
 	"path/filepath"
-	"time"
+	"strings"
+
+	"github.com/google/uuid"
 )
 
-func (u *User) mkdir(path string) error {
-	dir, _ := filepath.Split(path)
-	if err := u.authPath(dir, PermWrite); err != nil {
+type Record struct {
+	Name     string      `json:"name"`
+	Children []uuid.UUID `json:"children"`
+	UUID     uuid.UUID   `json:"-"`
+	refs     int
+	fs       *Fs
+}
+
+// NOTE(mrms): The remove calls in this function may fail, but in reality, it's
+// higly improbable.
+func (rec *Record) delete() {
+	name := rec.UUID.String()
+	os.Remove(rec.fs.path(name))
+
+	entries, _ := os.ReadDir(rec.fs.path(""))
+	for _, e := range entries {
+		if !strings.HasPrefix(e.Name(), name+".") {
+			continue
+		}
+		os.Remove(rec.fs.path(e.Name()))
+	}
+}
+
+func (rec *Record) incRef() {
+	for _, c := range rec.Children {
+		rec.fs.records[c].incRef()
+	}
+
+	rec.refs++
+}
+
+func (rec *Record) decRef() {
+	for _, c := range rec.Children {
+		rec.fs.records[c].incRef()
+	}
+
+	rec.refs--
+	if rec.refs == 0 {
+		rec.delete()
+	}
+}
+
+func (rec *Record) Save() error {
+	f, err := os.Create(rec.fs.path(rec.UUID.String()))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	enc := json.NewEncoder(f)
+	return enc.Encode(*rec)
+}
+
+// TODO: Check if there isn't a record with the same name in the folder already.
+func (parent *Record) Mount(rec *Record) {
+	parent.Children = append(parent.Children, rec.UUID)
+	parent.Save()
+	rec.incRef()
+}
+
+func (parent *Record) Unmount(rec *Record) {
+	for i, u := range parent.Children {
+		if u == rec.UUID {
+			parent.Children = append(parent.Children[:i], parent.Children[i+1:]...)
+		}
+	}
+
+	parent.Save()
+	rec.decRef()
+}
+
+func (rec *Record) Open(section string) (*os.File, error) {
+	return os.Open(rec.fs.path(rec.UUID.String() + "." + section))
+}
+
+func (rec *Record) Create(section string) (*os.File, error) {
+	return os.Create(rec.fs.path(rec.UUID.String() + "." + section))
+}
+
+type Fs struct {
+	records  map[uuid.UUID]*Record
+	root     uuid.UUID
+	basePath string
+}
+
+func (fs *Fs) path(p string) string {
+	// TODO sanitize paths
+	return filepath.Join(fs.basePath, p)
+}
+
+func (fs *Fs) loadRecords() error {
+	entries, err := os.ReadDir(fs.path(""))
+	if err != nil {
 		return err
 	}
 
-	os.Mkdir(toDataPath("data", path), 0770)
-	(&Metadata{
-		Perms: map[string]PermType{
-			u.Name: 0xff,
-		},
-		CreatedBy: u.Name,
-		Edits: []FileEdit{
-			{
-				User: u.Name,
-				Date: uint64(time.Now().Unix()),
-				Note: "Directory created",
-			},
-		},
-	}).write(path)
+	for _, e := range entries {
+		if e.Type().IsDir() {
+			continue
+		}
+
+		name := e.Name()
+		if len(name) != 36 { // Not an UUID
+			continue
+		}
+
+		u, err := uuid.Parse(name)
+		if err != nil { // Not a valid UUID
+			return err
+		}
+
+		f, err := os.Open(fs.path(name))
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		rec := new(Record)
+		dec := json.NewDecoder(f)
+		err = dec.Decode(&rec)
+		if err != nil {
+			return err
+		}
+
+		rec.UUID = u
+		rec.fs = fs
+		fs.records[u] = rec
+	}
+
+	return err
+}
+
+func (fs *Fs) runGC() error {
+	fs.records[fs.root].incRef()
 
 	return nil
 }
 
-func (u *User) removeFile(path string) error {
-	if err := u.authPath(path, PermWrite); err != nil {
-		return err
-	}
+func (fs *Fs) NewRecord(name string) (*Record, error) {
+	rec := new(Record)
+	rec.fs = fs
+	rec.UUID = uuid.New()
+	rec.Name = name
+	rec.Children = []uuid.UUID{}
 
-	if err := os.RemoveAll(toDataPath("data", path)); err != nil {
-		return err
-	}
+	fs.records[rec.UUID] = rec
 
-	if err := os.Remove(toMetadataPath(path)); err != nil {
-		return err
-	}
-
-	return nil
+	return rec, rec.Save()
 }
 
-func registerFsEndpoints() {
-	http.HandleFunc("/api/v1/fs/mkdir", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			respondError(newError(405, "Method not allowed"), w)
-			return
-		}
+func (fs *Fs) GetRecord(u uuid.UUID) *Record {
+	return fs.records[u]
+}
 
-		slog.Info("POST mkdir")
-		u, err := getUserFromRequest(r)
-		if err != nil {
-			respondError(err, w)
-			return
-		}
+func NewFs(root uuid.UUID, basePath string) (fs Fs, err error) {
+	fs.basePath = basePath
+	fs.root = root
+	fs.records = make(map[uuid.UUID]*Record)
 
-		type Data struct {
-			Path string `json:"path"`
-		}
+	err = fs.loadRecords()
+	if err != nil {
+		return
+	}
 
-		d := Data{}
-		dec := json.NewDecoder(r.Body)
-		dec.DisallowUnknownFields()
-		err = dec.Decode(&d)
-		if err != nil {
-			respondError(err, w)
-			return
-		}
+	if _, c := fs.records[root]; !c {
+		return fs, errors.New("the root UUID not found in fs")
+	}
 
-		err = u.mkdir(d.Path)
-		if err != nil {
-			respondError(err, w)
-			return
-		}
+	// TODO: Maybe we should check for cycles here?
 
-		respondOk(w)
-	})
+	err = fs.runGC()
+	if err != nil {
+		return
+	}
 
-	http.HandleFunc("/api/v1/fs/rm", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			respondError(newError(405, "Method not allowed"), w)
-			return
-		}
-
-		slog.Info("POST mkdir")
-		u, err := getUserFromRequest(r)
-		if err != nil {
-			respondError(err, w)
-			return
-		}
-
-		type Data struct {
-			Path string `json:"path"`
-		}
-
-		d := Data{}
-		dec := json.NewDecoder(r.Body)
-		dec.DisallowUnknownFields()
-		err = dec.Decode(&d)
-		if err != nil {
-			respondError(err, w)
-			return
-		}
-
-		err = u.removeFile(d.Path)
-		if err != nil {
-			respondError(err, w)
-			return
-		}
-
-		respondOk(w)
-	})
+	return
 }

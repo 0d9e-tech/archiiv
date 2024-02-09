@@ -1,52 +1,37 @@
 package main
 
 import (
-	"encoding/json"
-	"flag"
 	"fmt"
-	"log"
-	"log/slog"
-	"net/http"
-	"os"
-)
 
-type Config struct {
-	Host    string `json:"host"`
-	Port    int    `json:"port"`
-	DataDir string `json:"data_dir"`
-	Debug   bool   `json:"debug"`
-}
-
-var (
-	g_cfg Config = Config{
-		Host:    "",
-		Port:    4432,
-		DataDir: "/var/lib/archiiv/",
-		Debug:   false,
-	}
+	"github.com/google/uuid"
 )
 
 func main() {
-	cfgPath := flag.String("c", "/etc/archiiv/config.json", "Set the config.json path.")
-	flag.Parse()
-
-	f, err := os.Open(*cfgPath)
+	root, _ := uuid.Parse("a3762628-2da5-4c0d-80d5-5c7153b67321")
+	fs, err := NewFs(root, "test_fs")
 	if err != nil {
-		slog.Error(err.Error())
-		os.Exit(1)
+		panic(err)
 	}
 
-	dec := json.NewDecoder(f)
+	rr := fs.GetRecord(root)
 
-	err = dec.Decode(&g_cfg)
+	/*folder, err := fs.NewRecord("marek")
 	if err != nil {
-		slog.Error("Could not decode config:", "err", err)
-		os.Exit(1)
+		panic(err)
 	}
 
-	registerAuthEndpoints()
-	registerFsEndpoints()
+	rr.Mount(folder)
+	w, err := folder.Create("data")
+	if err != nil {
+		panic(err)
+	}
+	defer w.Close()
 
-	slog.Info(fmt.Sprintf("Listening on %s:%d", g_cfg.Host, g_cfg.Port))
-	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%d", g_cfg.Host, g_cfg.Port), nil))
+	w.WriteString("Amogus\n")*/
+
+	for _, u := range rr.Children {
+		rr.Unmount(fs.GetRecord(u))
+	}
+
+	fmt.Println(fs)
 }
