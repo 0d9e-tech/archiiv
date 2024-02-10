@@ -45,3 +45,14 @@ func (av *Archiiv) loadFiles() error {
 
 	return nil
 }
+
+func (f *File) Save() error {
+	w, err := f.rec.Create("meta")
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+
+	enc := json.NewEncoder(w)
+	return enc.Encode(f)
+}

@@ -99,88 +99,60 @@ Hook ideas:
 TODO: figure out auth, I've marked some endpoints with auth. These endpoints
 will pass the request to some auth function, which returns some stuff.
 
-### POST(auth) /api/v1/fs/rm
+### Error responses
 
-Remove a file or directory. This action requires the user to have rw permissions
-for the file or the directory and all of its contents recursively.
+If the request fails, the server will respond with a JSON looking like this:
 
-Input:
-
-```
-{ "path": path to file to delete }
-```
-
-### POST(auth) /api/v1/fs/mkdir
-
-Make a directory. The directory will have the author's permissions set to 0xff.
-This call requires the user to have write permissions for the parent directory.
-
-Input:
-
-```
-{ "path": path to directory to create }
+```json
+{
+  "ok": false,
+  "error": "error message"
+}
 ```
 
----
+### GET(AUTH) /api/v1/fs/:uuid/ls
 
-# server:
+Lists all the mounted files in the file specified by `uuid`. Read permissions
+for the file are required.
 
-- bez database??
-  - dirs, files
-  - /.users \* list users, hash hesla?
-- link na
-  - photo dump do složky
-  - photo access
-- shared photos between dirs?? symlink?? nebo není potřeba?
-- jxl + on demand convert do jpg or smt pro web?
+Returns:
 
-# mobile app:
+```json
+{
+  "ok": true,
+  "data": [
+    list of UUID strings
+  ]
+}
+```
 
-- upload fotky z množiny složek (může být na button)
-- mapování local dir -> remote dir
-  - měl by umět vyrábět složky po měsících týden, ...
-    - format string setting?
-- smazat remotly backed up photos
+### POST(AUTH) /api/v1/fs/:uuid/touch/:name
 
-# misc:
+Creates a new file with name `name` and mounts it to `uuid`. It is not possible to
+create an orphan file.
 
-bulk import z google photos tool!!
+Returns:
 
----
+```json
+{
+  "ok": true,
+  "data": uuid of the new file
+}
+```
 
-Odsouhlaseno na meetingu:
+### POST(AUTH) /api/v1/fs/:uuid/mount/:uuid2
 
-- configy na disku jsou json
-- přes api se posílá json
+Mounts `uuid2` to `uuid`.
 
-# server je API
+### POST(AUTH) /api/v1/fs/:uuid/unmount/:uuid2
 
-- endpointy
+Unmounts `uuid2` from `uuid`.
 
-  - uploadnout soubor do složky
-    - target dir
-    - soubor name
-  - list dir tree
-  - list files
-  - list shared with me (slow probably)
-  - get dir permissions
-  - set dir permissions
+### GET(AUTH) /api/v1/fs/:uuid/section/:section
 
-- public fake user
+Gets the data of a file's section inside the response body.
 
-- README per dir
+### POST(AUTH) /api/v1/fs/:uuid/section/:section
 
-- .users file
-
-  - jenom otp haha?
-  - login s username+otp
-    - dostane session token [který jdou mazat per device]--(prokop:asi ne)
-
-- user má dir
-- per directory inherited .settings
-
-# frontend používá API
-
-# mobil je taky frontend simple
-
-- API do filesystemu
+Sets the data of a files's section. If the file doesn't have a section
+of that name, it will be created.
