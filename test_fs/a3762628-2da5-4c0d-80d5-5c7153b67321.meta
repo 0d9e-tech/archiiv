@@ -1,0 +1,10 @@
+{
+    "uuid": "a3762628-2da5-4c0d-80d5-5c7153b67321",
+    "type": "archiiv/directory",
+    "perms": {
+        "marek": 2
+    },
+    "hooks": [],
+    "createdBy": "root",
+    "createdAt": 1707571767
+}

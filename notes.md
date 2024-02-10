@@ -42,23 +42,27 @@ document.
 
 ## Permissions
 
-Permissions are specified in file's metadata. They are inherited through the
-file system. There are four permission bits:
+Permissions are specified for each user with these three bits:
 
-- read
-- write
-- metadata read
-- metadata write
+- read - read the file
+- write - write the file
+- owner - write the file's metadata
 
-There is a special user called `pub`, who anyone can be logged in as. Another
-special user is `root`, who has access to anything, but can't be logged in as.
+These permissions are not inherited through the filesystem, but are set for each
+file separately. However Archív offers an API to quickly set permission bits
+for a file tree. There is a special user called `pub`, who anyone can be logged in as.
+Another special user is `root`, who has access to anything, but can't be logged in as.
+If a user doesn't have any permissions specified for a file, they have the same
+permissions as the `pub` user. Archív offers the ability to create groups of users.
 
 ## Metadata
 
 ```
 {
+  "uuid": back link to the fs record,
+  "type": MIME type of the data record,
   "perms": {
-    "username": bit field with permissions
+    "username": bit field with permissions,
     ...
   },
   "hooks": list of required hooks,

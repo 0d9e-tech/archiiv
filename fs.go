@@ -31,6 +31,8 @@ func (rec *Record) delete() {
 		}
 		os.Remove(rec.fs.path(e.Name()))
 	}
+
+	delete(rec.fs.records, rec.UUID)
 }
 
 func (rec *Record) incRef() {
@@ -81,6 +83,8 @@ func (parent *Record) Unmount(rec *Record) {
 	rec.decRef()
 }
 
+// TODO: Sanitize that the section name doesn't contain slashes or other
+// nasty characters.
 func (rec *Record) Open(section string) (*os.File, error) {
 	return os.Open(rec.fs.path(rec.UUID.String() + "." + section))
 }

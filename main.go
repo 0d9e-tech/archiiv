@@ -1,37 +1,37 @@
 package main
 
 import (
-	"fmt"
-
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
+type Archiiv struct {
+	fs    Fs
+	files map[uuid.UUID]*File
+	gin   *gin.Engine
+}
+
 func main() {
 	root, _ := uuid.Parse("a3762628-2da5-4c0d-80d5-5c7153b67321")
+
+	av := Archiiv{}
+
 	fs, err := NewFs(root, "test_fs")
 	if err != nil {
 		panic(err)
 	}
 
-	rr := fs.GetRecord(root)
-
-	/*folder, err := fs.NewRecord("marek")
+	av.fs = fs
+	err = av.loadFiles()
 	if err != nil {
 		panic(err)
 	}
 
-	rr.Mount(folder)
-	w, err := folder.Create("data")
+	av.gin = gin.Default()
+	av.fsEndpoints()
+
+	err = av.gin.Run()
 	if err != nil {
 		panic(err)
 	}
-	defer w.Close()
-
-	w.WriteString("Amogus\n")*/
-
-	for _, u := range rr.Children {
-		rr.Unmount(fs.GetRecord(u))
-	}
-
-	fmt.Println(fs)
 }
