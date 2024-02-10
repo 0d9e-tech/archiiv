@@ -1,6 +1,13 @@
 package main
 
 import (
+	"encoding/json"
+	"flag"
+	"io"
+	"os"
+	"path/filepath"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -11,12 +18,58 @@ type Archiiv struct {
 	gin   *gin.Engine
 }
 
+func cmdInit() {
+	os.Mkdir("fs", os.ModePerm)
+	u := uuid.New()
+
+	w, _ := os.Create("fs/root")
+	w.WriteString(u.String())
+	w.Close()
+
+	w, _ = os.Create(filepath.Join("fs", u.String()))
+	d, _ := json.Marshal(Record{
+		Name:     "",
+		Children: []uuid.UUID{},
+	})
+	w.Write(d)
+	w.Close()
+
+	w, _ = os.Create(filepath.Join("fs", u.String()+".meta"))
+	d, _ = json.Marshal(File{
+		UUID:      u,
+		Type:      "archiiv/directory",
+		Perms:     map[string]uint8{},
+		Hooks:     []string{},
+		CreatedBy: "root",
+		CreatedAt: uint64(time.Now().Unix()),
+	})
+	w.Write(d)
+	w.Close()
+}
+
 func main() {
-	root, _ := uuid.Parse("a3762628-2da5-4c0d-80d5-5c7153b67321")
+	if len(os.Args) > 1 && os.Args[1][0] != '-' {
+		switch os.Args[1] {
+		case "init":
+			cmdInit()
+			return
+		case "cli":
+		}
+	}
+
+	dir := flag.String("dir", "/var/lib/archiiv", "Specify the Archív directory")
+	flag.Parse()
 
 	av := Archiiv{}
 
-	fs, err := NewFs(root, "test_fs")
+	rootFile, err := os.Open(filepath.Join(*dir, "fs", "root"))
+	if err != nil {
+		panic(err)
+	}
+	rootData, _ := io.ReadAll(rootFile)
+	rootUUID, _ := uuid.ParseBytes(rootData)
+
+	fs, err := NewFs(rootUUID, filepath.Join(*dir, "fs"))
 	if err != nil {
 		panic(err)
 	}
