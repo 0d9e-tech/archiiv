@@ -116,9 +116,6 @@ func (fs *Fs) loadRecords() error {
 		}
 
 		name := e.Name()
-		if len(name) != 36 { // Not an UUID
-			continue
-		}
 
 		u, err := uuid.Parse(name)
 		if err != nil { // Not a valid UUID
