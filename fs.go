@@ -130,7 +130,7 @@ func (fs *Fs) loadRecords() error {
 
 		rec := new(Record)
 		dec := json.NewDecoder(f)
-		err = dec.Decode(&rec)
+		err = dec.Decode(rec)
 		if err != nil {
 			return err
 		}
