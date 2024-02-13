@@ -18,24 +18,40 @@ type Archiiv struct {
 	gin   *gin.Engine
 }
 
-func cmdInit() {
+func cmdInit() error {
 	os.Mkdir("fs", os.ModePerm)
 	u := uuid.New()
 
-	w, _ := os.Create("fs/root")
+	w, err := os.Create("fs/root")
+	if err != nil {
+		return err
+	}
+
 	w.WriteString(u.String())
 	w.Close()
 
-	w, _ = os.Create(filepath.Join("fs", u.String()))
-	d, _ := json.Marshal(Record{
+	w, err = os.Create(filepath.Join("fs", u.String()))
+	if err != nil {
+		return err
+	}
+
+	d, err := json.Marshal(Record{
 		Name:     "",
 		Children: []uuid.UUID{},
 	})
+	if err != nil {
+		return err
+	}
+
 	w.Write(d)
 	w.Close()
 
-	w, _ = os.Create(filepath.Join("fs", u.String()+".meta"))
-	d, _ = json.Marshal(File{
+	w, err = os.Create(filepath.Join("fs", u.String()+".meta"))
+	if err != nil {
+		return err
+	}
+
+	d, err = json.Marshal(File{
 		UUID:      u,
 		Type:      "archiiv/directory",
 		Perms:     map[string]uint8{},
@@ -43,16 +59,24 @@ func cmdInit() {
 		CreatedBy: "root",
 		CreatedAt: uint64(time.Now().Unix()),
 	})
+	if err != nil {
+		return err
+	}
+
 	w.Write(d)
 	w.Close()
+
+	return nil
 }
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1][0] != '-' {
 		switch os.Args[1] {
 		case "init":
-			cmdInit()
-			return
+			err := cmdInit()
+			if err != nil {
+				panic(err)
+			}
 		case "cli":
 		}
 	}
@@ -66,8 +90,16 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	rootData, _ := io.ReadAll(rootFile)
-	rootUUID, _ := uuid.ParseBytes(rootData)
+
+	rootData, err := io.ReadAll(rootFile)
+	if err != nil {
+		panic(err)
+	}
+
+	rootUUID, err := uuid.ParseBytes(rootData)
+	if err != nil {
+		panic(err)
+	}
 
 	fs, err := NewFs(rootUUID, filepath.Join(*dir, "fs"))
 	if err != nil {
