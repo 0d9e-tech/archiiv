@@ -1,17 +1,18 @@
 ## File Storage
 
-Archív has it's own fs, which stores **records** in a single folder in a flat structure.
-Each record has it's own UUID, which matches the Archív file it stores.
+Archív has it's own fs, which stores **records** in a single folder in a flat
+structure. Each record has it's own UUID, which matches the Archív file it
+stores.
 
-For each record, there is a file named by it's UUID, which stores a JSON describing
-two things: the record's name and a list of UUIDs. These are UUIDs of the records **mounted**
-to the record.
+For each record, there is a file named by it's UUID, which stores a JSON
+describing two things: the record's name and a list of UUIDs. These are UUIDs of
+the records **mounted** to the record.
 
-Each record can also have **sections**. Those are stored as separate files in the format
-`$UUID.$RECORD_NAME`.
+Each record can also have **sections**. Those are stored as separate files in
+the format `$UUID.$RECORD_NAME`.
 
-Records are reference counted. If the count reaches zero, the record and all the sections are
-removed from the drive.
+Records are reference counted. If the count reaches zero, the record and all the
+sections are removed from the drive.
 
 ## Sharing
 
@@ -20,8 +21,8 @@ removed from the drive.
 If you want to select the file, the client will allow you to choose what
 people/groups you want to share it with. Then you will get the file's UUID or a
 link, which you can share with the people. When the people receive your UUID,
-they can enter it into their archív client and add the file to any location
-they choose.
+they can enter it into their archív client and add the file to any location they
+choose.
 
 This will not create any new copies of the shared file. If someone you shared
 the file with has write permissions and edits the file, others will see the
@@ -49,11 +50,12 @@ Permissions are specified for each user with these three bits:
 - owner - write the file's metadata
 
 These permissions are not inherited through the filesystem, but are set for each
-file separately. However Archív offers an API to quickly set permission bits
-for a file tree. There is a special user called `pub`, who anyone can be logged in as.
-Another special user is `root`, who has access to anything, but can't be logged in as.
-If a user doesn't have any permissions specified for a file, they have the same
-permissions as the `pub` user. Archív offers the ability to create groups of users.
+file separately. However Archív offers an API to quickly set permission bits for
+a file tree. There is a special user called `pub`, who anyone can be logged in
+as. Another special user is `root`, who has access to anything, but can't be
+logged in as. If a user doesn't have any permissions specified for a file, they
+have the same permissions as the `pub` user. Archív offers the ability to create
+groups of users.
 
 ## Metadata
 
