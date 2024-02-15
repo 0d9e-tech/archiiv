@@ -5,11 +5,12 @@ import (
 	"net/http"
 )
 
-func NewServer(
+func newServer(
 	logger *slog.Logger,
+	secret string,
 ) http.Handler {
 	mux := http.NewServeMux()
-	addRoutes(mux, logger)
+	addRoutes(mux, logger, secret)
 	var handler http.Handler = mux
 	return handler
 }

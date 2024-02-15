@@ -30,14 +30,15 @@ func run(ctx context.Context, w io.Writer, args []string) error {
 	log.Info("Dobrý den")
 
 	flags := flag.NewFlagSet("", flag.ContinueOnError)
-	host := flags.String("host", "localhost", "config file")
-	port := flags.String("host", "localhost", "config file")
+	host := flags.String("host", "localhost", "")
+	port := flags.String("port", "8275", "")
+	secret := flags.String("secret", "hahahehe", "cryptographic secret") // TODO dont pass secrets as cli arguments
 	err := flags.Parse(args)
 	if err != nil {
 		return err
 	}
 
-	srv := NewServer(log)
+	srv := newServer(log, *secret)
 
 	httpServer := &http.Server{
 		Addr:    net.JoinHostPort(*host, *port),

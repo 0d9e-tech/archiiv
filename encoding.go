@@ -6,8 +6,8 @@ import (
 	"net/http"
 )
 
-func encodeError(w http.ResponseWriter, r *http.Request, status int, v string) error {
-	return encode(w, r, status, struct {
+func encodeError(w http.ResponseWriter, status int, v string) error {
+	return encode(w, status, struct {
 		Ok    bool   `json:"ok"`
 		Error string `json:"error"`
 	}{
@@ -16,8 +16,8 @@ func encodeError(w http.ResponseWriter, r *http.Request, status int, v string) e
 	})
 }
 
-func encodeOk[T any](w http.ResponseWriter, r *http.Request, status int, v T) error {
-	return encode(w, r, status, struct {
+func encodeOK[T any](w http.ResponseWriter, status int, v T) error {
+	return encode(w, status, struct {
 		Ok   bool `json:"ok"`
 		Data T    `json:"data"`
 	}{
@@ -26,7 +26,7 @@ func encodeOk[T any](w http.ResponseWriter, r *http.Request, status int, v T) er
 	})
 }
 
-func encode(w http.ResponseWriter, r *http.Request, status int, v any) error {
+func encode(w http.ResponseWriter, status int, v any) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 

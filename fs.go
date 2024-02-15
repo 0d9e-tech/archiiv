@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -187,4 +189,9 @@ func NewFs(root uuid.UUID, basePath string) (fs Fs, err error) {
 	}
 
 	return
+}
+
+func handleLs(logger *slog.Logger, userStore userStorer) http.Handler {
+	// TODO
+	return http.HandlerFunc(http.NotFound)
 }
