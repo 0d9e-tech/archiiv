@@ -1,122 +1,70 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"flag"
+	"fmt"
 	"io"
+	"log/slog"
+	"net"
+	"net/http"
 	"os"
-	"path/filepath"
+	"os/signal"
+	"sync"
 	"time"
-
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
-type Archiiv struct {
-	fs    Fs
-	files map[uuid.UUID]*File
-	gin   *gin.Engine
+func main() {
+	ctx := context.Background()
+	if err := run(ctx, os.Stdout, os.Args); err != nil {
+		fmt.Printf("%s\n", err)
+		os.Exit(1)
+	}
 }
 
-func cmdInit() error {
-	os.Mkdir("fs", os.ModePerm)
-	u := uuid.New()
+func run(ctx context.Context, w io.Writer, args []string) error {
+	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
+	defer cancel()
 
-	w, err := os.Create("fs/root")
+	log := slog.New(slog.NewJSONHandler(os.Stderr, nil))
+	log.Info("Dobrý den")
+
+	flags := flag.NewFlagSet("", flag.ContinueOnError)
+	host := flags.String("host", "localhost", "config file")
+	port := flags.String("host", "localhost", "config file")
+	err := flags.Parse(args)
 	if err != nil {
 		return err
 	}
 
-	w.WriteString(u.String())
-	w.Close()
+	srv := NewServer(log)
 
-	w, err = os.Create(filepath.Join("fs", u.String()))
-	if err != nil {
-		return err
+	httpServer := &http.Server{
+		Addr:    net.JoinHostPort(*host, *port),
+		Handler: srv,
 	}
 
-	d, err := json.Marshal(Record{
-		Name:     "",
-		Children: []uuid.UUID{},
-	})
-	if err != nil {
-		return err
-	}
+	go func() {
+		log.Info("listening", "address", httpServer.Addr)
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Error("listening and serving", "error", err)
+		}
+	}()
 
-	w.Write(d)
-	w.Close()
+	var wg sync.WaitGroup
+	wg.Add(1)
 
-	w, err = os.Create(filepath.Join("fs", u.String()+".meta"))
-	if err != nil {
-		return err
-	}
+	go func() {
+		defer wg.Done()
+		<-ctx.Done()
 
-	d, err = json.Marshal(File{
-		UUID:      u,
-		Type:      "archiiv/directory",
-		Perms:     map[string]uint8{},
-		Hooks:     []string{},
-		CreatedBy: "root",
-		CreatedAt: uint64(time.Now().Unix()),
-	})
-	if err != nil {
-		return err
-	}
-
-	w.Write(d)
-	w.Close()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			fmt.Printf("error shutting down http server: %s\n", err)
+		}
+	}()
+	wg.Wait()
 
 	return nil
-}
-
-func main() {
-	if len(os.Args) > 1 && os.Args[1][0] != '-' {
-		switch os.Args[1] {
-		case "init":
-			err := cmdInit()
-			if err != nil {
-				panic(err)
-			}
-		case "cli":
-		}
-	}
-
-	dir := flag.String("dir", "/var/lib/archiiv", "Specify the Archív directory")
-	flag.Parse()
-
-	av := Archiiv{}
-
-	rootFile, err := os.Open(filepath.Join(*dir, "fs", "root"))
-	if err != nil {
-		panic(err)
-	}
-
-	rootData, err := io.ReadAll(rootFile)
-	if err != nil {
-		panic(err)
-	}
-
-	rootUUID, err := uuid.ParseBytes(rootData)
-	if err != nil {
-		panic(err)
-	}
-
-	fs, err := NewFs(rootUUID, filepath.Join(*dir, "fs"))
-	if err != nil {
-		panic(err)
-	}
-
-	av.fs = fs
-	err = av.loadFiles()
-	if err != nil {
-		panic(err)
-	}
-
-	av.gin = gin.Default()
-	av.fsEndpoints()
-
-	err = av.gin.Run()
-	if err != nil {
-		panic(err)
-	}
 }

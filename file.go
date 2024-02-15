@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 
 	"github.com/google/uuid"
 )
@@ -22,28 +23,27 @@ type File struct {
 	rec       *Record
 }
 
-func (av *Archiiv) loadFiles() error {
-	av.files = map[uuid.UUID]*File{}
-
-	for u, rec := range av.fs.records {
+func loadFiles(records map[uuid.UUID]*Record) (files map[uuid.UUID]*File, err error) {
+	var metaReader io.Reader
+	for u, rec := range records {
 		f := new(File)
 
-		metaReader, err := rec.Open("meta")
+		metaReader, err = rec.Open("meta")
 		if err != nil {
-			return err
+			return
 		}
 
 		dec := json.NewDecoder(metaReader)
 		err = dec.Decode(f)
 		if err != nil {
-			return err
+			return
 		}
 
 		f.rec = rec
-		av.files[u] = f
+		files[u] = f
 	}
 
-	return nil
+	return
 }
 
 func (f *File) Save() error {
