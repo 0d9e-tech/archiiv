@@ -12,12 +12,17 @@ import (
 	"github.com/google/uuid"
 )
 
+// File/Dir
 type Record struct {
 	Name     string      `json:"name"`
 	Children []uuid.UUID `json:"children"`
 	UUID     uuid.UUID   `json:"-"`
 	refs     int
 	fs       *Fs
+}
+
+type fileStorer interface {
+	get(uuid uuid.UUID) Record
 }
 
 // NOTE(mrms): The remove calls in this function may fail, but in reality, it's
@@ -191,7 +196,21 @@ func NewFs(root uuid.UUID, basePath string) (fs Fs, err error) {
 	return
 }
 
-func handleLs(logger *slog.Logger, userStore userStorer) http.Handler {
-	// TODO
-	return http.HandlerFunc(http.NotFound)
+func handleLs(logger *slog.Logger, userStore userStorer, fileStore fileStorer) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username := getUser(r)
+		uuid, err := uuid.Parse(r.FormValue("uuid"))
+		if err != nil {
+			encodeError(w, http.StatusBadRequest, "invalid uuid")
+		}
+
+		record := fileStore.get(uuid)
+
+		if !hasReadPerm(username, record) {
+			encodeError(w, http.StatusForbidden, "Insufficient permissions")
+			return
+		}
+
+		encodeOK(w, http.StatusOK, record.Children)
+	})
 }

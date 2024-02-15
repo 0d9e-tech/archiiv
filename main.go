@@ -28,6 +28,7 @@ func run(ctx context.Context, w io.Writer, args []string) error {
 
 	log := slog.New(slog.NewJSONHandler(os.Stderr, nil))
 	log.Info("Dobrý den")
+	defer log.Info("Nashledanou")
 
 	flags := flag.NewFlagSet("", flag.ContinueOnError)
 	host := flags.String("host", "localhost", "")
@@ -38,7 +39,12 @@ func run(ctx context.Context, w io.Writer, args []string) error {
 		return err
 	}
 
-	srv := newServer(log, *secret)
+	users, err := loadUsers("users.json")
+	if err != nil {
+		return err
+	}
+
+	srv := newServer(log, *secret, users)
 
 	httpServer := &http.Server{
 		Addr:    net.JoinHostPort(*host, *port),
