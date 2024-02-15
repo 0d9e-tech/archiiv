@@ -6,4 +6,6 @@
 
 # Archív
 
-Archív (pronounced [[arxiːf]](https://en.wiktionary.org/wiki/arch%C3%ADv#Czech), written as _archiiv_ when ASCII-only variant is needed) is a self-hosted media storage API with users and permissions.
+Archív (pronounced [[arxiːf]](https://en.wiktionary.org/wiki/arch%C3%ADv#Czech),
+written as _archiiv_ when ASCII-only variant is needed) is a self-hosted media
+storage API with users and permissions.
