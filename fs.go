@@ -22,11 +22,19 @@ type Record struct {
 }
 
 type fileStorer interface {
-	get(uuid uuid.UUID) Record
+	get(uuid uuid.UUID) *Record
 }
 
 type FileStore struct {
 	files map[uuid.UUID]File
+}
+
+func loadFiles() (FileStore, error) {
+	return FileStore{}, nil
+}
+
+func (fs FileStore) get(uuid uuid.UUID) *Record {
+	return fs.files[uuid].rec
 }
 
 // NOTE(mrms): The remove calls in this function may fail, but in reality, it's

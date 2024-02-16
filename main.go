@@ -26,7 +26,7 @@ func run(ctx context.Context, w io.Writer, args []string) error {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
 
-	log := slog.New(slog.NewJSONHandler(os.Stderr, nil))
+	log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	log.Info("Dobrý den")
 	defer log.Info("Nashledanou")
 
@@ -44,7 +44,12 @@ func run(ctx context.Context, w io.Writer, args []string) error {
 		return err
 	}
 
-	srv := newServer(log, *secret, users)
+	files, err := loadFiles()
+	if err != nil {
+		return err
+	}
+
+	srv := newServer(log, *secret, users, files)
 
 	httpServer := &http.Server{
 		Addr:    net.JoinHostPort(*host, *port),

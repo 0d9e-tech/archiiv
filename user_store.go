@@ -21,7 +21,8 @@ type userStore struct {
 }
 
 type user struct {
-	username, pwd string
+	Username string `json:"username"`
+	Pwd      string `json:"password"`
 }
 
 func loadUsers(path string) (userStore, error) {

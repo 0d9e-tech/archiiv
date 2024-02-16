@@ -23,7 +23,7 @@ type File struct {
 	rec       *Record
 }
 
-func loadFiles(records map[uuid.UUID]*Record) (files map[uuid.UUID]*File, err error) {
+func loadFilesFromRecords(records map[uuid.UUID]*Record) (files map[uuid.UUID]*File, err error) {
 	var metaReader io.Reader
 	for u, rec := range records {
 		f := new(File)
