@@ -25,6 +25,10 @@ type fileStorer interface {
 	get(uuid uuid.UUID) Record
 }
 
+type FileStore struct {
+	files map[uuid.UUID]File
+}
+
 // NOTE(mrms): The remove calls in this function may fail, but in reality, it's
 // higly improbable.
 func (rec *Record) delete() {
@@ -211,6 +215,6 @@ func handleLs(logger *slog.Logger, userStore userStorer, fileStore fileStorer) h
 			return
 		}
 
-		encodeOK(w, http.StatusOK, record.Children)
+		encodeOK(w, record.Children)
 	})
 }

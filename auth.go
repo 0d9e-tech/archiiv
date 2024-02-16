@@ -34,13 +34,22 @@ func handleLogin(secret string, logger *slog.Logger, userStore userStorer) http.
 
 		if ok {
 			logger.Info("New login", "user", name)
-			encodeOK(w, http.StatusOK, struct {
+			encodeOK(w, struct {
 				Token string `json:"token"`
 			}{Token: token})
 		} else {
 			logger.Info("Failed login", "user", name)
 			encodeError(w, http.StatusForbidden, "Wrong name or password")
 		}
+	})
+}
+
+func handleWhoami(logger *slog.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := getUser(r)
+		encodeOK(w, struct {
+			Name string `json:"name"`
+		}{Name: name})
 	})
 }
 

@@ -16,8 +16,8 @@ func encodeError(w http.ResponseWriter, status int, v string) error {
 	})
 }
 
-func encodeOK[T any](w http.ResponseWriter, status int, v T) error {
-	return encode(w, status, struct {
+func encodeOK[T any](w http.ResponseWriter, v T) error {
+	return encode(w, http.StatusOK, struct {
 		Ok   bool `json:"ok"`
 		Data T    `json:"data"`
 	}{
