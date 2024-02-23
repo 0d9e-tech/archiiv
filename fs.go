@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -208,18 +207,25 @@ func NewFs(root uuid.UUID, basePath string) (fs Fs, err error) {
 	return
 }
 
-func handleLs(logger *slog.Logger, userStore userStorer, fileStore fileStorer) http.Handler {
+func handleLs(userStore userStorer, fileStore fileStorer) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		uuidArg := r.PathValue("uuid")
 		username := getUser(r)
-		uuid, err := uuid.Parse(r.FormValue("uuid"))
+
+		uuid, err := uuid.Parse(uuidArg)
 		if err != nil {
 			encodeError(w, http.StatusBadRequest, "invalid uuid")
+			return
 		}
 
 		record := fileStore.get(uuid)
+		if record == nil {
+			encodeError(w, http.StatusNotFound, "file not found")
+			return
+		}
 
 		if !hasReadPerm(username, record) {
-			encodeError(w, http.StatusForbidden, "Insufficient permissions")
+			encodeError(w, http.StatusForbidden, "insufficient permissions")
 			return
 		}
 

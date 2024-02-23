@@ -7,13 +7,13 @@ import (
 
 func addRoutes(
 	mux *http.ServeMux,
-	logger *slog.Logger,
+	log *slog.Logger,
 	secret string,
 	userStore userStorer,
 	fileStore fileStorer,
 ) {
-	mux.Handle("/api/v1/login", handleLogin(secret, logger, userStore))
-	mux.Handle("/api/v1/whoami", requireLogin(secret, handleWhoami(logger)))
-	mux.Handle("/api/v1/fs/ls", requireLogin(secret, handleLs(logger, userStore, fileStore)))
-	mux.Handle("/", http.NotFoundHandler())
+	mux.Handle("/api/v1/login", handleLogin(secret, log, userStore))
+	mux.Handle("/api/v1/whoami", requireLogin(secret, handleWhoami(log)))
+	mux.Handle("/api/v1/fs/ls/{uuid}", logAccesses(log, requireLogin(secret, handleLs(userStore, fileStore))))
+	mux.Handle("/", logAccesses(log, http.NotFoundHandler()))
 }

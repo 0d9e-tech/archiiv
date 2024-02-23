@@ -30,11 +30,15 @@ func run(ctx context.Context, w io.Writer, args []string) error {
 	log.Info("Dobrý den")
 	defer log.Info("Nashledanou")
 
-	flags := flag.NewFlagSet("", flag.ContinueOnError)
-	host := flags.String("host", "localhost", "")
-	port := flags.String("port", "8275", "")
-	secret := flags.String("secret", "hahahehe", "cryptographic secret") // TODO dont pass secrets as cli arguments
-	err := flags.Parse(args)
+	flags := flag.NewFlagSet("archiiv", flag.ContinueOnError)
+
+	var host, port, secret string
+
+	flags.StringVar(&host, "host", "localhost", "")
+	flags.StringVar(&port, "port", "8275", "")
+	flags.StringVar(&secret, "secret", "hahahehe", "cryptographic secret") // TODO dont pass secrets as cli arguments
+
+	err := flags.Parse(args[1:])
 	if err != nil {
 		return err
 	}
@@ -49,10 +53,10 @@ func run(ctx context.Context, w io.Writer, args []string) error {
 		return err
 	}
 
-	srv := newServer(log, *secret, users, files)
+	srv := newServer(log, secret, users, files)
 
 	httpServer := &http.Server{
-		Addr:    net.JoinHostPort(*host, *port),
+		Addr:    net.JoinHostPort(host, port),
 		Handler: srv,
 	}
 
@@ -73,7 +77,7 @@ func run(ctx context.Context, w io.Writer, args []string) error {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := httpServer.Shutdown(shutdownCtx); err != nil {
-			fmt.Printf("error shutting down http server: %s\n", err)
+			log.Error("shutting down http server", "error", err)
 		}
 	}()
 	wg.Wait()
