@@ -210,7 +210,7 @@ func NewFs(root uuid.UUID, basePath string) (fs Fs, err error) {
 func handleLs(userStore userStorer, fileStore fileStorer) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		uuidArg := r.PathValue("uuid")
-		username := getUser(r)
+		username := getUsername(r)
 
 		uuid, err := uuid.Parse(uuidArg)
 		if err != nil {

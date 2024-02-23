@@ -22,14 +22,26 @@ func main() {
 	}
 }
 
-func run(ctx context.Context, w io.Writer, args []string) error {
-	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
-	defer cancel()
+func newServer(
+	log *slog.Logger,
+	secret string,
+	userStore userStorer,
+	fileStore fileStorer,
+) http.Handler {
+	mux := http.NewServeMux()
+	addRoutes(
+		mux,
+		log,
+		secret,
+		userStore,
+		fileStore,
+	)
+	var handler http.Handler = mux
+	handler = logAccesses(log, handler)
+	return handler
+}
 
-	log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	log.Info("Dobrý den")
-	defer log.Info("Nashledanou")
-
+func parseFlags(args []string) (string, string, string, error) {
 	flags := flag.NewFlagSet("archiiv", flag.ContinueOnError)
 
 	var host, port, secret string
@@ -39,6 +51,22 @@ func run(ctx context.Context, w io.Writer, args []string) error {
 	flags.StringVar(&secret, "secret", "hahahehe", "cryptographic secret") // TODO dont pass secrets as cli arguments
 
 	err := flags.Parse(args[1:])
+	if err != nil {
+		return "", "", "", err
+	}
+
+	return host, port, secret, nil
+}
+
+func run(ctx context.Context, w io.Writer, args []string) error {
+	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
+	defer cancel()
+
+	log := slog.New(slog.NewJSONHandler(w, nil))
+	log.Info("Dobrý den")
+	defer log.Info("Nashledanou")
+
+	host, port, secret, err := parseFlags(args)
 	if err != nil {
 		return err
 	}
@@ -60,7 +88,7 @@ func run(ctx context.Context, w io.Writer, args []string) error {
 		Handler: srv,
 	}
 
-	go func() {
+	go func() { // listening goroutine
 		log.Info("listening", "address", httpServer.Addr)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Error("listening and serving", "error", err)
@@ -70,7 +98,7 @@ func run(ctx context.Context, w io.Writer, args []string) error {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	go func() {
+	go func() { // cleanup goroutine
 		defer wg.Done()
 		<-ctx.Done()
 
