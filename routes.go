@@ -12,8 +12,8 @@ func addRoutes(
 	userStore userStorer,
 	fileStore fileStorer,
 ) {
-	mux.Handle("/api/v1/login", handleLogin(secret, log, userStore))
-	mux.Handle("/api/v1/whoami", requireLogin(secret, handleWhoami()))
-	mux.Handle("/api/v1/fs/ls/{uuid}", requireLogin(secret, handleLs(userStore, fileStore)))
+	mux.Handle("GET /api/v1/login", handleLogin(secret, log, userStore))
+	mux.Handle("GET /api/v1/whoami", requireLogin(secret, handleWhoami()))
+	mux.Handle("GET /api/v1/fs/ls/{uuid}", requireLogin(secret, handleLs(userStore, fileStore)))
 	mux.Handle("/", http.NotFoundHandler())
 }
