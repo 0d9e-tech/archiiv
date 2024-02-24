@@ -16,7 +16,7 @@ import (
 
 func main() {
 	ctx := context.Background()
-	if err := run(ctx, os.Stdout, os.Args); err != nil {
+	if err := run(ctx, os.Stdout, os.Args, os.Getenv); err != nil {
 		fmt.Printf("%s\n", err)
 		os.Exit(1)
 	}
@@ -41,24 +41,20 @@ func newServer(
 	return handler
 }
 
-func parseFlags(args []string) (string, string, string, error) {
+func getConfig(args []string, env func(string) string) (host string, port string, secret string, err error) {
 	flags := flag.NewFlagSet("archiiv", flag.ContinueOnError)
-
-	var host, port, secret string
 
 	flags.StringVar(&host, "host", "localhost", "")
 	flags.StringVar(&port, "port", "8275", "")
-	flags.StringVar(&secret, "secret", "hahahehe", "cryptographic secret") // TODO dont pass secrets as cli arguments
 
-	err := flags.Parse(args[1:])
-	if err != nil {
-		return "", "", "", err
-	}
+	secret = env("ARCHIIV_SECRET")
 
-	return host, port, secret, nil
+	err = flags.Parse(args[1:])
+
+	return
 }
 
-func run(ctx context.Context, w io.Writer, args []string) error {
+func run(ctx context.Context, w io.Writer, args []string, env func(string) string) error {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
 
@@ -66,7 +62,7 @@ func run(ctx context.Context, w io.Writer, args []string) error {
 	log.Info("Dobrý den")
 	defer log.Info("Nashledanou")
 
-	host, port, secret, err := parseFlags(args)
+	host, port, secret, err := getConfig(args, env)
 	if err != nil {
 		return err
 	}
