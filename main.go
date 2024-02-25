@@ -72,10 +72,7 @@ func run(ctx context.Context, w io.Writer, args []string, env func(string) strin
 		return err
 	}
 
-	files, err := loadFiles()
-	if err != nil {
-		return err
-	}
+	files := NullFileStore{}
 
 	srv := newServer(log, secret, users, files)
 
