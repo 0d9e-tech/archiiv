@@ -9,15 +9,21 @@ package main
 // is saved in the 'data' section. metadata is in 'meta'. hooks can create own
 // sections
 
+// External function, which take UUIDs as inputs are thread safe. Internal
+// functions, which take pointers to records instead are not thread safe.
+
 import (
 	"encoding/json"
 	"errors"
-	"github.com/google/uuid"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -34,13 +40,40 @@ type Record struct {
 	Children []uuid.UUID `json:"children,omitempty"`
 	IsDir    bool        `json:"is_dir"`
 	Name     string      `json:"name"`
+	id       uuid.UUID   `json:"-"`
 	refs     uint        `json:"-"`
+	mutex    sync.Mutex  `json:"-"`
+}
+
+func (r *Record) lock() {
+	r.mutex.Lock()
+}
+
+func (r *Record) unlock() {
+	r.mutex.Unlock()
 }
 
 type Fs struct {
+	lock     sync.RWMutex
 	records  map[uuid.UUID]*Record
 	root     uuid.UUID
 	basePath string
+}
+
+func (fs *Fs) getRecord(u uuid.UUID) (*Record, error) {
+	fs.lock.RLock()
+	defer fs.lock.Unlock()
+	r, e := fs.records[u]
+	if e {
+		return nil, errors.New("uuid doesn't exist")
+	}
+	return r, nil
+}
+
+func (fs *Fs) setRecord(r *Record) {
+	fs.lock.Lock()
+	defer fs.lock.Unlock()
+	fs.records[r.id] = r
 }
 
 func (fs *Fs) path(p string) string {
@@ -48,8 +81,8 @@ func (fs *Fs) path(p string) string {
 	return filepath.Join(fs.basePath, p)
 }
 
-func (fs *Fs) writeToDisk(id uuid.UUID, r *Record) error {
-	f, err := os.Create(fs.path(id.String()))
+func (fs *Fs) writeRecord(r *Record) error {
+	f, err := os.Create(fs.path(r.id.String()))
 	if err != nil {
 		return err
 	}
@@ -59,25 +92,23 @@ func (fs *Fs) writeToDisk(id uuid.UUID, r *Record) error {
 	return enc.Encode(r)
 }
 
-func (fs *Fs) newRecord(parent_uuid uuid.UUID, name string) (uuid.UUID, error) {
-	new_id := uuid.New()
+func (fs *Fs) newRecord(parent *Record, name string, dir bool) (*Record, error) {
+	child := new(Record)
+	child.Children = []uuid.UUID{}
+	child.id = uuid.New()
+	child.Name = name
+	child.refs = 1
+	child.IsDir = dir
 
-	new_rec := new(Record)
-	new_rec.Children = []uuid.UUID{}
-	new_rec.Name = name
-	new_rec.refs = 1
+	fs.setRecord(child)
 
-	fs.records[new_id] = new_rec
+	parent.Children = append(parent.Children, child.id)
 
-	parent_record := fs.records[parent_uuid]
-	parent_record.Children = append(parent_record.Children, new_id)
-	fs.records[parent_uuid] = parent_record
-
-	return new_id, fs.writeToDisk(new_id, new_rec)
+	return child, fs.writeRecord(child)
 }
 
 // return new slice that does not contain v
-func removeUUID(s []uuid.UUID, v uuid.UUID) []uuid.UUID {
+func removeUUID(s []uuid.UUID, v uuid.UUID) ([]uuid.UUID, error) {
 	i := 0
 	pos := -1
 	for ; i < len(s); i++ {
@@ -89,17 +120,17 @@ func removeUUID(s []uuid.UUID, v uuid.UUID) []uuid.UUID {
 
 	for ; i < len(s); i++ {
 		if s[i] == v {
-			panic("duplicite uuid")
+			return s, errors.New("duplicite uuid")
 		}
 	}
 
 	if pos == -1 {
-		panic("uuid not found")
+		return s, errors.New("uuid not found")
 	}
 
 	// swap remove
 	s[pos] = s[len(s)-1]
-	return s[:len(s)-1]
+	return s[:len(s)-1], nil
 }
 
 func (fs *Fs) deleteRecordFilesFromDisk(name string) error {
@@ -135,42 +166,7 @@ func (fs *Fs) deleteRecordFilesFromDisk(name string) error {
 	return nil
 }
 
-func (fs *Fs) deleteChildInMemoryAndWriteParentToDisk(parent uuid.UUID, child uuid.UUID) error {
-	ch := fs.records[parent].Children
-	fs.records[parent].Children = removeUUID(ch, child)
-
-	return fs.writeToDisk(parent, fs.records[parent])
-}
-
-func (fs *Fs) decreseChildrenRefCountRecursive(current uuid.UUID) error {
-	// list of all errors. We try to delete as many files as we can to
-	// avoid zombie files and then return one big error with all of the
-	// failed removes.
-	var errs []error
-
-	for _, child := range fs.records[current].Children {
-		if fs.records[child].refs == 0 {
-			panic("decresing ref count below zero")
-		}
-
-		fs.records[child].refs--
-
-		if fs.records[child].refs == 0 {
-			err := fs.delete(current, child)
-			if err != nil {
-				errs = append(errs, err)
-			}
-		}
-	}
-
-	if len(errs) != 0 {
-		return errors.Join(errs...)
-	}
-
-	return nil
-}
-
-func checkSectionNameIsSane(section string) error {
+func checkSectionNameSanity(section string) error {
 	match, _ := regexp.MatchString(onlySectionPattern, section)
 	if !match {
 		return errors.New("section name is not sane")
@@ -182,36 +178,102 @@ func (fs *Fs) getSectionFileName(file uuid.UUID, section string) string {
 	return fs.path(file.String() + "." + section)
 }
 
+func (fs *Fs) deleteRecord(r *Record) error {
+	for _, u := range r.Children {
+		err := fs.unmount(r.id, u)
+		if err != nil {
+			return err
+		}
+	}
+
+	entries, err := os.ReadDir(fs.basePath)
+	if err != nil {
+		return err
+	}
+
+	idStr := r.id.String()
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), idStr) {
+			os.Remove(e.Name())
+		}
+	}
+
+	return nil
+}
+
 // fileStorer impl
 
 func (fs *Fs) getChildren(u uuid.UUID) ([]uuid.UUID, error) {
 	return fs.records[u].Children, nil
 }
 
-func (fs *Fs) mkdir(parent_uuid uuid.UUID, name string) (uuid.UUID, error) {
-	return fs.newRecord(parent_uuid, name)
+func (fs *Fs) mkdir(parentUUID uuid.UUID, name string) (uuid.UUID, error) {
+	parent, err := fs.getRecord(parentUUID)
+	if err != nil {
+		return uuid.UUID{}, nil
+	}
+
+	r, err := fs.newRecord(parent, name, true)
+	return r.id, err
 }
 
-func (fs *Fs) touch(parent_uuid uuid.UUID, name string) (uuid.UUID, error) {
-	return fs.newRecord(parent_uuid, name)
+func (fs *Fs) touch(parentUUID uuid.UUID, name string) (uuid.UUID, error) {
+	parent, err := fs.getRecord(parentUUID)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+
+	r, err := fs.newRecord(parent, name, false)
+	return r.id, err
 }
 
-func (fs *Fs) delete(parent uuid.UUID, child uuid.UUID) error {
-	err := fs.deleteChildInMemoryAndWriteParentToDisk(parent, child)
+func (fs *Fs) unmount(parentUUID uuid.UUID, childUUID uuid.UUID) error {
+	parent, err := fs.getRecord(parentUUID)
 	if err != nil {
 		return err
 	}
 
-	err = fs.deleteRecordFilesFromDisk(child.String())
+	parent.lock()
+	defer parent.unlock()
+
+	parent.Children, err = removeUUID(parent.Children, childUUID)
 	if err != nil {
 		return err
 	}
 
-	return fs.decreseChildrenRefCountRecursive(parent)
+	err = fs.writeRecord(parent)
+	if err != nil {
+		return err
+	}
+
+	child, err := fs.getRecord(childUUID)
+	if err != nil {
+		return err
+	}
+
+	child.lock()
+	defer child.unlock()
+
+	child.refs--
+	if child.refs == 0 {
+		return fs.deleteRecord(child)
+	}
+
+	return nil
 }
 
 func (fs *Fs) mount(parent uuid.UUID, newChild uuid.UUID) error {
-	rec := fs.records[parent]
+	child, err := fs.getRecord(newChild)
+	if err != nil {
+		return err
+	}
+
+	rec, err := fs.getRecord(parent)
+	if err != nil {
+		return err
+	}
+	rec.lock()
+	defer rec.unlock()
 
 	for _, child := range rec.Children {
 		if child == newChild {
@@ -221,29 +283,36 @@ func (fs *Fs) mount(parent uuid.UUID, newChild uuid.UUID) error {
 
 	rec.Children = append(rec.Children, newChild)
 
-	fs.records[newChild].refs++
+	child.lock()
+	child.refs++
+	child.unlock()
 
-	return fs.writeToDisk(parent, rec)
+	return fs.writeRecord(rec)
 }
 
-func (fs *Fs) readSection(uuid uuid.UUID, section string) ([]byte, error) {
-	err := checkSectionNameIsSane(section)
+func (fs *Fs) openSection(uuid uuid.UUID, section string) (io.ReadCloser, error) {
+	err := checkSectionNameSanity(section)
 	if err != nil {
 		return nil, err
 	}
-	return os.ReadFile(fs.getSectionFileName(uuid, section))
+	return os.Open(fs.getSectionFileName(uuid, section))
 }
 
-func (fs *Fs) writeSection(uuid uuid.UUID, section string, data []byte) error {
-	err := checkSectionNameIsSane(section)
+func (fs *Fs) createSection(uuid uuid.UUID, section string) (io.WriteCloser, error) {
+	err := checkSectionNameSanity(section)
+	if err != nil {
+		return nil, err
+	}
+
+	return os.Create(fs.getSectionFileName(uuid, section))
+}
+
+func (fs *Fs) deleteSection(uuid uuid.UUID, section string) error {
+	err := checkSectionNameSanity(section)
 	if err != nil {
 		return err
 	}
 
-	return os.WriteFile(fs.getSectionFileName(uuid, section), data, 0644)
-}
-
-func (fs *Fs) deleteSection(uuid uuid.UUID, section string) error {
 	return os.Remove(fs.getSectionFileName(uuid, section))
 }
 
@@ -308,7 +377,7 @@ func checkLoadedRecordsAreSane(map[uuid.UUID]*Record) error {
 	return nil
 }
 
-func newFs(root uuid.UUID, basePath string) (fs Fs, err error) {
+func newFs(root uuid.UUID, basePath string) (fs *Fs, err error) {
 	fs.basePath = basePath
 	fs.root = root
 	fs.records = make(map[uuid.UUID]*Record)

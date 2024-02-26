@@ -2,6 +2,8 @@ package main
 
 import (
 	"errors"
+	"io"
+
 	"github.com/google/uuid"
 )
 
@@ -23,7 +25,7 @@ func (nfs NullFileStore) touch(uuid.UUID, string) (uuid.UUID, error) {
 	return uuid.New(), nil
 }
 
-func (nfs NullFileStore) delete(parent uuid.UUID, child uuid.UUID) error {
+func (nfs NullFileStore) unmount(parent uuid.UUID, child uuid.UUID) error {
 	return nil
 }
 
@@ -31,12 +33,12 @@ func (nfs NullFileStore) mount(parent uuid.UUID, newChild uuid.UUID) error {
 	return nil
 }
 
-func (nfs NullFileStore) readSection(uuid uuid.UUID, section string) ([]byte, error) {
+func (nfs NullFileStore) openSection(uuid uuid.UUID, section string) (io.ReadCloser, error) {
 	return nil, errors.New("file not found")
 }
 
-func (nfs NullFileStore) writeSection(uuid uuid.UUID, section string, data []byte) error {
-	return nil
+func (nfs NullFileStore) createSection(uuid uuid.UUID, section string) (io.WriteCloser, error) {
+	return nil, nil
 }
 
 func (nfs NullFileStore) deleteSection(uuid uuid.UUID, section string) error {

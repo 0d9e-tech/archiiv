@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"strings"
 
 	"github.com/google/uuid"
 )
@@ -25,20 +24,23 @@ type fileMeta struct {
 }
 
 func readFileMeta(fs fileStorer, file uuid.UUID) (fm fileMeta, err error) {
-	data, err := fs.readSection(file, "meta")
+	r, err := fs.openSection(file, "meta")
 	if err != nil {
 		return
 	}
+	defer r.Close()
 
-	err = json.NewDecoder(strings.NewReader(string(data))).Decode(&fm)
+	err = json.NewDecoder(r).Decode(&fm)
 	return
 }
 
 func writeFileMeta(fs fileStorer, file uuid.UUID, fm fileMeta) error {
-	encoded, err := json.Marshal(fm)
+	w, err := fs.createSection(file, "meta")
 	if err != nil {
 		return err
 	}
+	defer w.Close()
 
-	return fs.writeSection(file, "meta", encoded)
+	enc := json.NewEncoder(w)
+	return enc.Encode(fm)
 }
