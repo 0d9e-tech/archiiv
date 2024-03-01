@@ -1,6 +1,9 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 )
@@ -30,7 +33,20 @@ func login(name, pwd string, userStore userStorer) (ok bool, token string) {
 }
 
 func handleLogin(secret string, log *slog.Logger, userStore userStorer) http.Handler {
+	type LoginRequest struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		dec := json.NewDecoder(r.Body)
+
+		var lr LoginRequest
+
+		if err := dec.Decode(&lr); err != nil {
+			encodeError(w, http.StatusBadRequest, fmt.Errorf("invalid json: %w", err))
+			return
+		}
+
 		name := r.FormValue("name")
 		pwd := r.FormValue("pwd")
 
@@ -39,9 +55,11 @@ func handleLogin(secret string, log *slog.Logger, userStore userStorer) http.Han
 		if ok {
 			log.Info("New login", "user", name)
 			encodeOK(w, map[string]any{"token": token})
+			return
 		} else {
 			log.Info("Failed login", "user", name)
-			encodeError(w, http.StatusForbidden, "wrong name or password")
+			encodeError(w, http.StatusForbidden, errors.New("wrong name or password"))
+			return
 		}
 	})
 }

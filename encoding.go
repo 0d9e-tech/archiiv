@@ -6,20 +6,20 @@ import (
 	"net/http"
 )
 
-func encodeError(w http.ResponseWriter, status int, v string) error {
+func encodeError(w http.ResponseWriter, status int, e error) error {
 	return encode(w, status, struct {
 		Ok    bool   `json:"ok"`
 		Error string `json:"error"`
 	}{
 		Ok:    false,
-		Error: v,
+		Error: e.Error(),
 	})
 }
 
 func encodeOK[T any](w http.ResponseWriter, v T) error {
 	return encode(w, http.StatusOK, struct {
 		Ok   bool `json:"ok"`
-		Data T    `json:"data"`
+		Data T    `json:"data,omitempty"`
 	}{
 		Ok:   true,
 		Data: v,

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 
@@ -11,21 +12,21 @@ func handleLs(fileStore fileStorer) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		uuidArg := r.PathValue("uuid")
 
-		uuid, err := uuid.Parse(uuidArg)
-		if err != nil {
-			encodeError(w, http.StatusBadRequest, "invalid uuid")
+		id, e := uuid.Parse(uuidArg)
+		if e != nil {
+			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
 			return
 		}
 
-		children, err := fileStore.getChildren(uuid)
-		if err != nil {
-			encodeError(w, http.StatusNotFound, "file not found")
+		ch, e := fileStore.getChildren(id)
+		if e != nil {
+			encodeError(w, http.StatusNotFound, fmt.Errorf("file not found: %w", e))
 			return
 		}
 
 		// TODO check permission
 
-		encodeOK(w, children)
+		encodeOK(w, ch)
 	})
 }
 
@@ -34,25 +35,26 @@ func handleCat(fileStore fileStorer) http.Handler {
 		uuidArg := r.PathValue("uuid")
 		sectionArg := r.PathValue("section")
 
-		uuid, err := uuid.Parse(uuidArg)
-		if err != nil {
-			encodeError(w, http.StatusBadRequest, err.Error())
+		id, e := uuid.Parse(uuidArg)
+		if e != nil {
+			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
 			return
 		}
 
 		// TODO check permission
 
-		sectionReader, err := fileStore.openSection(uuid, sectionArg)
-		if err != nil {
-			encodeError(w, http.StatusInternalServerError, err.Error())
+		sectionReader, e := fileStore.openSection(id, sectionArg)
+		if e != nil {
+			encodeError(w, http.StatusInternalServerError, fmt.Errorf("open section: %w", e))
 			return
 		}
 
-		_, err = io.Copy(w, sectionReader)
-		if err != nil {
-			encodeError(w, http.StatusInternalServerError, err.Error())
+		if _, e = io.Copy(w, sectionReader); e != nil {
+			encodeError(w, http.StatusInternalServerError, fmt.Errorf("io copy: %w", e))
 			return
 		}
+
+		encodeOK[interface{}](w, nil)
 	})
 }
 
@@ -61,59 +63,80 @@ func handleUpload(fileStore fileStorer) http.Handler {
 		uuidArg := r.PathValue("uuid")
 		sectionArg := r.PathValue("section")
 
-		uuid, err := uuid.Parse(uuidArg)
-		if err != nil {
-			encodeError(w, http.StatusBadRequest, err.Error())
+		uuid, e := uuid.Parse(uuidArg)
+		if e != nil {
+			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
 			return
 		}
 
 		// TODO check permission
 
-		sectionWriter, err := fileStore.createSection(uuid, sectionArg)
-		if err != nil {
-			encodeError(w, http.StatusInternalServerError, err.Error())
+		sectionWriter, e := fileStore.createSection(uuid, sectionArg)
+		if e != nil {
+			encodeError(w, http.StatusInternalServerError, fmt.Errorf("create section: %w", e))
 			return
 		}
 
-		_, err = io.Copy(sectionWriter, r.Body)
-		if err != nil {
-			encodeError(w, http.StatusInternalServerError, err.Error())
+		if _, e = io.Copy(sectionWriter, r.Body); e != nil {
+			encodeError(w, http.StatusInternalServerError, fmt.Errorf("io copy: %w", e))
 			return
 		}
+
+		encodeOK[interface{}](w, nil)
 	})
 }
 
 func handleTouch(fileStore fileStorer) http.Handler {
+	type OkResponse struct {
+		NewFileUuid uuid.UUID `json:"new_file_uuid"`
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		uuidArg := r.PathValue("uuid")
 		name := r.PathValue("name")
 
-		uuid, err := uuid.Parse(uuidArg)
-		if err != nil {
-			encodeError(w, http.StatusBadRequest, err.Error())
+		parentId, e := uuid.Parse(uuidArg)
+		if e != nil {
+			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
 			return
 		}
 
 		// TODO check permission
 
-		fileStore.touch(uuid, name)
+		fileId, e := fileStore.touch(parentId, name)
+		if e != nil {
+			encodeError(w, http.StatusInternalServerError, fmt.Errorf("touch: %w", e))
+			return
+		}
+
+		encodeOK(w, OkResponse{NewFileUuid: fileId})
 	})
 }
 
 func handleMkdir(fileStore fileStorer) http.Handler {
+	type OkResponse struct {
+		NewDirUuid uuid.UUID `json:"new_dir_uuid"`
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		uuidArg := r.PathValue("uuid")
 		name := r.PathValue("name")
 
-		uuid, err := uuid.Parse(uuidArg)
-		if err != nil {
-			encodeError(w, http.StatusBadRequest, err.Error())
+		id, e := uuid.Parse(uuidArg)
+		if e != nil {
+			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
 			return
 		}
 
 		// TODO check permission
 
-		fileStore.mkdir(uuid, name)
+		fileId, e := fileStore.mkdir(id, name)
+		if e != nil {
+			encodeError(w, http.StatusInternalServerError, fmt.Errorf("mkdir: %w", e))
+			return
+		}
+
+		encodeOK(w, OkResponse{NewDirUuid: fileId})
 	})
 }
 
@@ -122,21 +145,27 @@ func handleMount(fileStore fileStorer) http.Handler {
 		parentArg := r.PathValue("parentUuid")
 		childArg := r.PathValue("childUuid")
 
-		parentUuid, err := uuid.Parse(parentArg)
-		if err != nil {
-			encodeError(w, http.StatusBadRequest, err.Error())
+		parentUuid, e := uuid.Parse(parentArg)
+		if e != nil {
+			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
 			return
 		}
 
-		childUuid, err := uuid.Parse(childArg)
-		if err != nil {
-			encodeError(w, http.StatusBadRequest, err.Error())
+		childUuid, e := uuid.Parse(childArg)
+		if e != nil {
+			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
 			return
 		}
 
 		// TODO check permission
 
-		fileStore.mount(parentUuid, childUuid)
+		e = fileStore.mount(parentUuid, childUuid)
+		if e != nil {
+			encodeError(w, http.StatusInternalServerError, fmt.Errorf("parse uuid: %w", e))
+			return
+		}
+
+		encodeOK[interface{}](w, nil)
 	})
 }
 
@@ -145,20 +174,26 @@ func handleUnmount(fileStore fileStorer) http.Handler {
 		parentArg := r.PathValue("parentUuid")
 		childArg := r.PathValue("childUuid")
 
-		parentUuid, err := uuid.Parse(parentArg)
-		if err != nil {
-			encodeError(w, http.StatusBadRequest, err.Error())
+		parentUuid, e := uuid.Parse(parentArg)
+		if e != nil {
+			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
 			return
 		}
 
-		childUuid, err := uuid.Parse(childArg)
-		if err != nil {
-			encodeError(w, http.StatusBadRequest, err.Error())
+		childUuid, e := uuid.Parse(childArg)
+		if e != nil {
+			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
 			return
 		}
 
 		// TODO check permission
 
-		fileStore.unmount(parentUuid, childUuid)
+		e = fileStore.unmount(parentUuid, childUuid)
+		if e != nil {
+			encodeError(w, http.StatusInternalServerError, fmt.Errorf("parse uuid: %w", e))
+			return
+		}
+
+		encodeOK[interface{}](w, nil)
 	})
 }

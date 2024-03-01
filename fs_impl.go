@@ -14,8 +14,8 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
