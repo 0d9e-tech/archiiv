@@ -101,6 +101,12 @@ func (fs *Fs) newRecord(parent *Record, name string, dir bool) (*Record, error) 
 
 	fs.setRecord(child)
 
+	for _, e := range parent.Children {
+		if e == child.id {
+			return nil, errors.New("child already there")
+		}
+	}
+
 	parent.Children = append(parent.Children, child.id)
 
 	return child, fs.writeRecord(child)
