@@ -1,8 +1,8 @@
 package fs
 
 import (
-	"os"
 	"encoding/json"
+	"os"
 	"path/filepath"
 
 	"github.com/google/uuid"
@@ -50,4 +50,3 @@ func InitFsDir() (dir string, root_uuid uuid.UUID, err error) {
 
 	return
 }
-

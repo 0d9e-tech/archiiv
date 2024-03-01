@@ -1,7 +1,7 @@
 package main
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -44,7 +44,11 @@ func TestEmptyServer(t *testing.T) {
 
 			res := w.Result()
 			defer res.Body.Close()
-			_, err = ioutil.ReadAll(res.Body)
+			_, err = io.ReadAll(res.Body)
+			if err != nil {
+				t.Errorf("read all: %v", err)
+				return
+			}
 
 			if res.StatusCode != tc.wantCode {
 				t.Errorf("expected status code %v. got %v", tc.wantCode, res.StatusCode)

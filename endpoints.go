@@ -3,7 +3,6 @@ package main
 import (
 	"archiiv/fs"
 	"archiiv/user"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -37,26 +36,19 @@ func handleLogin(secret string, log *slog.Logger, userStore user.UserStore) http
 		Password string `json:"password"`
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		dec := json.NewDecoder(r.Body)
-
-		var lr LoginRequest
-
-		if err := dec.Decode(&lr); err != nil {
-			encodeError(w, http.StatusBadRequest, fmt.Errorf("invalid json: %w", err))
-			return
+		lr, err := decode[LoginRequest](r)
+		if err != nil {
+			encodeError(w, http.StatusBadRequest, errors.New("wrong name or password"))
 		}
 
-		name := r.FormValue("name")
-		pwd := r.FormValue("pwd")
-
-		ok, token := login(name, pwd, userStore)
+		ok, token := login(lr.Username, lr.Password, userStore)
 
 		if ok {
-			log.Info("New login", "user", name)
+			log.Info("New login", "user", lr.Username)
 			encodeOK(w, map[string]any{"token": token})
 			return
 		} else {
-			log.Info("Failed login", "user", name)
+			log.Info("Failed login", "user", lr.Username)
 			encodeError(w, http.StatusForbidden, errors.New("wrong name or password"))
 			return
 		}
