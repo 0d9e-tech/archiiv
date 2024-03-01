@@ -10,6 +10,9 @@ func getSessionToken(r *http.Request) string {
 }
 
 func getUsername(r *http.Request) string {
+	// This function is only called in endpoints wrapped around
+	// `requireLogin` middleware so this function can assume that some user
+	// is logged in
 	// TODO
 	return ""
 }

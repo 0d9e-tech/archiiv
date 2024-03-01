@@ -16,7 +16,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -393,30 +392,4 @@ func newFs(root uuid.UUID, basePath string) (fs *Fs, err error) {
 	}
 
 	return fs, checkLoadedRecordsAreSane(fs.records)
-}
-
-func handleLs(userStore userStorer, fileStore fileStorer) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		uuidArg := r.PathValue("uuid")
-		username := getUsername(r)
-
-		uuid, err := uuid.Parse(uuidArg)
-		if err != nil {
-			encodeError(w, http.StatusBadRequest, "invalid uuid")
-			return
-		}
-
-		children, err := fileStore.getChildren(uuid)
-		if err != nil {
-			encodeError(w, http.StatusNotFound, "file not found")
-			return
-		}
-
-		if !hasReadPerm(username, uuid) {
-			encodeError(w, http.StatusForbidden, "insufficient permissions")
-			return
-		}
-
-		encodeOK(w, children)
-	})
 }
