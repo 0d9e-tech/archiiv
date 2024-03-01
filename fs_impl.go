@@ -14,6 +14,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"errors"
 	"io"
 	"os"
@@ -207,6 +208,9 @@ func (fs *Fs) deleteRecord(r *Record) error {
 }
 
 // fileStorer impl
+func (fs *Fs) getRoot() uuid.UUID {
+	return fs.root
+}
 
 func (fs *Fs) getChildren(u uuid.UUID) ([]uuid.UUID, error) {
 	return fs.records[u].Children, nil
@@ -367,7 +371,7 @@ func (fs *Fs) loadRecords() error {
 		dec := json.NewDecoder(f)
 		err = dec.Decode(rec)
 		if err != nil {
-			return err
+			return fmt.Errorf("json decore err: %w", err)
 		}
 
 		fs.records[u] = rec
@@ -383,6 +387,7 @@ func checkLoadedRecordsAreSane(map[uuid.UUID]*Record) error {
 }
 
 func newFs(root uuid.UUID, basePath string) (fs *Fs, err error) {
+	fs = new(Fs)
 	fs.basePath = basePath
 	fs.root = root
 	fs.records = make(map[uuid.UUID]*Record)

@@ -12,12 +12,14 @@ import (
 	"os/signal"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func main() {
 	ctx := context.Background()
 	if err := run(ctx, os.Stdout, os.Args, os.Getenv); err != nil {
-		fmt.Printf("%s\n", err)
+		fmt.Printf("error from main: %s\n", err)
 		os.Exit(1)
 	}
 }
@@ -41,13 +43,14 @@ func newServer(
 	return handler
 }
 
-func getConfig(args []string, env func(string) string) (host string, port string, secret string, err error) {
+func getConfig(args []string, env func(string) string) (host string, port string, secret string, fs_root string, err error) {
 	flags := flag.NewFlagSet("archiiv", flag.ContinueOnError)
 
 	flags.StringVar(&host, "host", "localhost", "")
 	flags.StringVar(&port, "port", "8275", "")
 
 	secret = env("ARCHIIV_SECRET")
+	fs_root = env("ARCHIIV_FS")
 
 	err = flags.Parse(args[1:])
 
@@ -62,7 +65,7 @@ func run(ctx context.Context, w io.Writer, args []string, env func(string) strin
 	log.Info("Dobrý den")
 	defer log.Info("Nashledanou")
 
-	host, port, secret, err := getConfig(args, env)
+	host, port, secret, fs_root, err := getConfig(args, env)
 	if err != nil {
 		return err
 	}
@@ -72,7 +75,10 @@ func run(ctx context.Context, w io.Writer, args []string, env func(string) strin
 		return err
 	}
 
-	files := NullFileStore{}
+	files, err := newFs(uuid.Nil, fs_root)
+	if err != nil {
+		return err
+	}
 
 	srv := newServer(log, secret, users, files)
 
