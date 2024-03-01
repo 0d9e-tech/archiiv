@@ -38,9 +38,7 @@ func handleLogin(secret string, log *slog.Logger, userStore userStorer) http.Han
 
 		if ok {
 			log.Info("New login", "user", name)
-			encodeOK(w, struct {
-				Token string `json:"token"`
-			}{Token: token})
+			encodeOK(w, map[string]any{"token": token})
 		} else {
 			log.Info("Failed login", "user", name)
 			encodeError(w, http.StatusForbidden, "wrong name or password")
