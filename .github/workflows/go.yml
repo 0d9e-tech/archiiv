@@ -1,32 +1,28 @@
 name: Go
-
-on:
-  push:
-    branches: [ "amogus" ]
-  pull_request:
-    branches: [ "amogus" ]
+on: ["push", "pull_request"]
 
 jobs:
-  build:
+  ci:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.22'
+      - name: set up go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
 
-    - name: Build
-      run: go build -v ./...
+      - name: build
+        run: go build -v ./...
 
-    - name: Vet
-      run: go vet -v ./...
+      - name: vet
+        run: go vet -v ./...
 
-    - uses: dominikh/staticcheck-action@v1.2.0
-      with:
-        version: "2023.1.7"
+      - name: staticcheck
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          staticcheck ./...
 
-    - name: Test
-      run: go test -v ./...
+      - name: test
+        run: go test -v ./...
 
