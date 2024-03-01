@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -14,29 +13,49 @@ import (
 )
 
 func main() {
-	if err := run(os.Stdout, os.Args, os.Getenv); err != nil {
-		fmt.Printf("error from main: %s\n", err)
+	log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+	srv, conf, err := createServer(log, os.Args[1:], os.Getenv)
+	if err != nil {
+		fmt.Printf("error from create: %s\n", err)
+		os.Exit(1)
+	}
+
+	err = run(log, srv, conf)
+	if err != nil {
+		fmt.Printf("error from run: %s\n", err)
 		os.Exit(1)
 	}
 }
 
-func newServer(
-	log *slog.Logger,
-	secret string,
-	userStore userStorer,
-	fileStore fileStorer,
-) http.Handler {
+func createServer(log *slog.Logger, args []string, env func(string) string) (http.Handler, config, error) {
+	conf, err := getConfig(args, env)
+	if err != nil {
+		return nil, config{}, fmt.Errorf("get config: %w", err)
+	}
+
+	users, err := loadUsers(conf.users_path)
+	if err != nil {
+		return nil, config{}, fmt.Errorf("load users: %w", err)
+	}
+
+	files, err := newFs(conf.root_uuid, conf.fs_root)
+	if err != nil {
+		return nil, config{}, fmt.Errorf("new fs: %w", err)
+	}
+
 	mux := http.NewServeMux()
 	addRoutes(
 		mux,
 		log,
-		secret,
-		userStore,
-		fileStore,
+		conf.secret,
+		users,
+		files,
 	)
-	var handler http.Handler = mux
-	handler = logAccesses(log, handler)
-	return handler
+	var srv http.Handler = mux
+	srv = logAccesses(log, srv)
+
+	return srv, conf ,nil
 }
 
 type config struct {
@@ -62,12 +81,18 @@ func getConfig(args []string, env func(string) string) (conf config, err error) 
 
 	conf.secret = env("ARCHIIV_SECRET")
 
-	err = flags.Parse(args[1:])
+	err = flags.Parse(args)
 	if err != nil {
+		err = fmt.Errorf("flags parse: %w", err)
 		return
 	}
 
 	conf.root_uuid, err = uuid.Parse(root_uuid_string)
+
+	if err != nil {
+		err = fmt.Errorf("uuid parse: %w", err)
+		return
+	}
 
 	return
 }
@@ -88,27 +113,10 @@ func goodbye(log *slog.Logger) {
 	log.Info("Goodbye")
 }
 
-func run(w io.Writer, args []string, env func(string) string) error {
-	log := slog.New(slog.NewJSONHandler(w, nil))
+func run(log *slog.Logger, srv http.Handler, conf config) error {
 	greet(log)
 	defer goodbye(log)
 
-	conf, err := getConfig(args, env)
-	if err != nil {
-		return err
-	}
-
-	users, err := loadUsers(conf.users_path)
-	if err != nil {
-		return err
-	}
-
-	files, err := newFs(conf.root_uuid, conf.fs_root)
-	if err != nil {
-		return err
-	}
-
-	srv := newServer(log, conf.secret, users, files)
 	httpServer := &http.Server{
 		Addr:    net.JoinHostPort(conf.host, conf.port),
 		Handler: srv,
