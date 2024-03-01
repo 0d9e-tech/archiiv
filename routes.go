@@ -1,16 +1,17 @@
 package main
 
 import (
+	"archiiv/fs"
+	"archiiv/user"
 	"log/slog"
 	"net/http"
-	"archiiv/fs"
 )
 
 func addRoutes(
 	mux *http.ServeMux,
 	log *slog.Logger,
 	secret string,
-	userStore userStorer,
+	userStore user.UserStore,
 	fileStore *fs.Fs,
 ) {
 	mux.Handle("POST /api/v1/login", handleLogin(secret, log, userStore))

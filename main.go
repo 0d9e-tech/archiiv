@@ -1,6 +1,8 @@
 package main
 
 import (
+	"archiiv/fs"
+	"archiiv/user"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -8,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"time"
-	"archiiv/fs"
 
 	"github.com/google/uuid"
 )
@@ -35,7 +36,7 @@ func createServer(log *slog.Logger, args []string, env func(string) string) (htt
 		return nil, config{}, fmt.Errorf("get config: %w", err)
 	}
 
-	users, err := loadUsers(conf.users_path)
+	users, err := user.LoadUsers(conf.users_path)
 	if err != nil {
 		return nil, config{}, fmt.Errorf("load users: %w", err)
 	}

@@ -1,12 +1,12 @@
 package main
 
 import (
+	"archiiv/fs"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"path/filepath"
-	"archiiv/fs"
 )
 
 func newTestServer() (http.Handler, string, error) {

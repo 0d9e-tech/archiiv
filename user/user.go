@@ -1,4 +1,4 @@
-package main
+package user
 
 import (
 	"encoding/json"
@@ -8,30 +8,19 @@ import (
 	"os"
 )
 
-type userStorer interface {
-	checkPassword(name, pwd string) bool
-	createUser(name, pwd string) error
-	deleteUser(name string) error
-}
-
-type userStore struct {
+type UserStore struct {
 	// username to hashed password
 	users map[string]string
 	file  *os.File
 }
 
-type user struct {
-	Username string `json:"username"`
-	Pwd      string `json:"password"`
-}
-
-func loadUsers(path string) (userStore, error) {
+func LoadUsers(path string) (UserStore, error) {
 	usersFile, err := os.OpenFile(path, os.O_RDWR, 0)
 	if err != nil {
 		panic(err)
 	}
 
-	var us userStore
+	var us UserStore
 
 	us.file = usersFile
 
@@ -43,7 +32,7 @@ func loadUsers(path string) (userStore, error) {
 	return us, err
 }
 
-func (us userStore) syncToDisk() error {
+func (us UserStore) syncToDisk() error {
 	_, err := us.file.Seek(0, io.SeekStart)
 	if err != nil {
 		return err
@@ -62,11 +51,11 @@ func (us userStore) syncToDisk() error {
 	return nil
 }
 
-func (self userStore) checkPassword(name, pwd string) bool {
+func (self UserStore) CheckPassword(name, pwd string) bool {
 	return self.users[name] == pwd
 }
 
-func (us userStore) createUser(name, pwd string) error {
+func (us UserStore) CreateUser(name, pwd string) error {
 	if _, ok := us.users[name]; ok {
 		return errors.New("username already used")
 	} else {
@@ -82,7 +71,7 @@ func (us userStore) createUser(name, pwd string) error {
 	}
 }
 
-func (us userStore) deleteUser(name string) error {
+func (us UserStore) DeleteUser(name string) error {
 	if _, ok := us.users[name]; !ok {
 		return errors.New("deleting unknown user")
 	}

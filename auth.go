@@ -1,6 +1,7 @@
 package main
 
 import (
+	"archiiv/user"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,14 +26,14 @@ func validateToken(secret, token string) bool {
 	return true
 }
 
-func login(name, pwd string, userStore userStorer) (ok bool, token string) {
+func login(name, pwd string, userStore user.UserStore) (ok bool, token string) {
 	// TODO generate session token
 	token = ""
 	ok = true
 	return
 }
 
-func handleLogin(secret string, log *slog.Logger, userStore userStorer) http.Handler {
+func handleLogin(secret string, log *slog.Logger, userStore user.UserStore) http.Handler {
 	type LoginRequest struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
