@@ -88,7 +88,7 @@ func handleLs(fs *fs.Fs) http.Handler {
 			return
 		}
 
-		// TODO check permission
+		// TODO(matěj) check permission
 
 		encodeOK(w, ch)
 	})
@@ -105,7 +105,7 @@ func handleCat(fs *fs.Fs) http.Handler {
 			return
 		}
 
-		// TODO check permission
+		// TODO(matěj) check permission
 
 		sectionReader, e := fs.OpenSection(id, sectionArg)
 		if e != nil {
@@ -133,7 +133,7 @@ func handleUpload(fs *fs.Fs) http.Handler {
 			return
 		}
 
-		// TODO check permission
+		// TODO(matěj) check permission
 
 		sectionWriter, e := fs.CreateSection(uuid, sectionArg)
 		if e != nil {
@@ -165,7 +165,7 @@ func handleTouch(fs *fs.Fs) http.Handler {
 			return
 		}
 
-		// TODO check permission
+		// TODO(matěj) check permission
 
 		fileId, e := fs.Touch(parentId, name)
 		if e != nil {
@@ -192,7 +192,7 @@ func handleMkdir(fs *fs.Fs) http.Handler {
 			return
 		}
 
-		// TODO check permission
+		// TODO(matěj) check permission
 
 		fileId, e := fs.Mkdir(id, name)
 		if e != nil {
@@ -221,7 +221,7 @@ func handleMount(fs *fs.Fs) http.Handler {
 			return
 		}
 
-		// TODO check permission
+		// TODO(matěj) check permission
 
 		e = fs.Mount(parentUuid, childUuid)
 		if e != nil {
@@ -250,7 +250,7 @@ func handleUnmount(fs *fs.Fs) http.Handler {
 			return
 		}
 
-		// TODO check permission
+		// TODO(matěj) check permission
 
 		e = fs.Unmount(parentUuid, childUuid)
 		if e != nil {

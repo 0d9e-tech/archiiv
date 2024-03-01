@@ -77,7 +77,7 @@ func (fs *Fs) setRecord(r *record) {
 }
 
 func (fs *Fs) path(p string) string {
-	// TODO sanitize paths
+	// TODO(marek) sanitize paths
 	return filepath.Join(fs.basePath, p)
 }
 
