@@ -14,21 +14,21 @@ import (
 // │   ├── ...
 // │   └── 38b4183d-4df4-43dd-9495-1847083a3662
 // └── users.json
-func InitFsDir() (dir string, root_uuid uuid.UUID, err error) {
+func InitFsDir() (dir string, rootUUID uuid.UUID, err error) {
 	dir, err = os.MkdirTemp("", "archiiv_test_*")
 	if err != nil {
 		return
 	}
 
-	fs_dir := filepath.Join(dir, "fs")
-	if err = os.Mkdir(fs_dir, 0755); err != nil {
+	fsDir := filepath.Join(dir, "fs")
+	if err = os.Mkdir(fsDir, 0755); err != nil {
 		return
 	}
 
-	root_uuid = uuid.New()
+	rootUUID = uuid.New()
 
 	// create root uuid
-	f, err := os.Create(filepath.Join(fs_dir, root_uuid.String()))
+	f, err := os.Create(filepath.Join(fsDir, rootUUID.String()))
 	if err != nil {
 		return
 	}
@@ -39,8 +39,8 @@ func InitFsDir() (dir string, root_uuid uuid.UUID, err error) {
 	})
 
 	// create users.json
-	users_path := filepath.Join(dir, "users.json")
-	f2, err := os.Create(users_path)
+	usersPath := filepath.Join(dir, "users.json")
+	f2, err := os.Create(usersPath)
 	if err != nil {
 		return
 	}

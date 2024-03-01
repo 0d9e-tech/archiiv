@@ -36,12 +36,12 @@ func createServer(log *slog.Logger, args []string, env func(string) string) (htt
 		return nil, config{}, fmt.Errorf("get config: %w", err)
 	}
 
-	users, err := user.LoadUsers(conf.users_path)
+	users, err := user.LoadUsers(conf.usersPath)
 	if err != nil {
 		return nil, config{}, fmt.Errorf("load users: %w", err)
 	}
 
-	files, err := fs.NewFs(conf.root_uuid, conf.fs_root)
+	files, err := fs.NewFs(conf.rootUUID, conf.fsRoot)
 	if err != nil {
 		return nil, config{}, fmt.Errorf("new fs: %w", err)
 	}
@@ -61,12 +61,12 @@ func createServer(log *slog.Logger, args []string, env func(string) string) (htt
 }
 
 type config struct {
-	host       string
-	port       string
-	secret     string
-	users_path string
-	fs_root    string
-	root_uuid  uuid.UUID
+	host      string
+	port      string
+	secret    string
+	usersPath string
+	fsRoot    string
+	rootUUID  uuid.UUID
 }
 
 func getConfig(args []string, env func(string) string) (conf config, err error) {
@@ -74,12 +74,12 @@ func getConfig(args []string, env func(string) string) (conf config, err error) 
 
 	flags.StringVar(&conf.host, "host", "localhost", "")
 	flags.StringVar(&conf.port, "port", "8275", "")
-	flags.StringVar(&conf.fs_root, "fs_root", "", "")
-	flags.StringVar(&conf.users_path, "users_path", "", "")
+	flags.StringVar(&conf.fsRoot, "fs_root", "", "")
+	flags.StringVar(&conf.usersPath, "users_path", "", "")
 
-	var root_uuid_string string
+	var rootUUIDString string
 
-	flags.StringVar(&root_uuid_string, "root_uuid", "", "")
+	flags.StringVar(&rootUUIDString, "root_uuid", "", "")
 
 	conf.secret = env("ARCHIIV_SECRET")
 
@@ -89,7 +89,7 @@ func getConfig(args []string, env func(string) string) (conf config, err error) 
 		return
 	}
 
-	conf.root_uuid, err = uuid.Parse(root_uuid_string)
+	conf.rootUUID, err = uuid.Parse(rootUUIDString)
 
 	if err != nil {
 		err = fmt.Errorf("uuid parse: %w", err)

@@ -144,14 +144,14 @@ func handleUpload(fs *fs.Fs) http.Handler {
 
 func handleTouch(fs *fs.Fs) http.Handler {
 	type OkResponse struct {
-		NewFileUuid uuid.UUID `json:"new_file_uuid"`
+		NewFileUUID uuid.UUID `json:"new_file_uuid"`
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		uuidArg := r.PathValue("uuid")
 		name := r.PathValue("name")
 
-		parentId, e := uuid.Parse(uuidArg)
+		parentID, e := uuid.Parse(uuidArg)
 		if e != nil {
 			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
 			return
@@ -159,19 +159,19 @@ func handleTouch(fs *fs.Fs) http.Handler {
 
 		// TODO(matěj) check permission
 
-		fileId, e := fs.Touch(parentId, name)
+		fileID, e := fs.Touch(parentID, name)
 		if e != nil {
 			encodeError(w, http.StatusInternalServerError, fmt.Errorf("touch: %w", e))
 			return
 		}
 
-		encodeOK(w, OkResponse{NewFileUuid: fileId})
+		encodeOK(w, OkResponse{NewFileUUID: fileID})
 	})
 }
 
 func handleMkdir(fs *fs.Fs) http.Handler {
 	type OkResponse struct {
-		NewDirUuid uuid.UUID `json:"new_dir_uuid"`
+		NewDirUUID uuid.UUID `json:"new_dir_uuid"`
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -186,28 +186,28 @@ func handleMkdir(fs *fs.Fs) http.Handler {
 
 		// TODO(matěj) check permission
 
-		fileId, e := fs.Mkdir(id, name)
+		fileID, e := fs.Mkdir(id, name)
 		if e != nil {
 			encodeError(w, http.StatusInternalServerError, fmt.Errorf("mkdir: %w", e))
 			return
 		}
 
-		encodeOK(w, OkResponse{NewDirUuid: fileId})
+		encodeOK(w, OkResponse{NewDirUUID: fileID})
 	})
 }
 
 func handleMount(fs *fs.Fs) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		parentArg := r.PathValue("parentUuid")
-		childArg := r.PathValue("childUuid")
+		parentArg := r.PathValue("parentUUID")
+		childArg := r.PathValue("childUUID")
 
-		parentUuid, e := uuid.Parse(parentArg)
+		parentUUID, e := uuid.Parse(parentArg)
 		if e != nil {
 			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
 			return
 		}
 
-		childUuid, e := uuid.Parse(childArg)
+		childUUID, e := uuid.Parse(childArg)
 		if e != nil {
 			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
 			return
@@ -215,7 +215,7 @@ func handleMount(fs *fs.Fs) http.Handler {
 
 		// TODO(matěj) check permission
 
-		e = fs.Mount(parentUuid, childUuid)
+		e = fs.Mount(parentUUID, childUUID)
 		if e != nil {
 			encodeError(w, http.StatusInternalServerError, fmt.Errorf("parse uuid: %w", e))
 			return
@@ -227,16 +227,16 @@ func handleMount(fs *fs.Fs) http.Handler {
 
 func handleUnmount(fs *fs.Fs) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		parentArg := r.PathValue("parentUuid")
-		childArg := r.PathValue("childUuid")
+		parentArg := r.PathValue("parentUUID")
+		childArg := r.PathValue("childUUID")
 
-		parentUuid, e := uuid.Parse(parentArg)
+		parentUUID, e := uuid.Parse(parentArg)
 		if e != nil {
 			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
 			return
 		}
 
-		childUuid, e := uuid.Parse(childArg)
+		childUUID, e := uuid.Parse(childArg)
 		if e != nil {
 			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
 			return
@@ -244,7 +244,7 @@ func handleUnmount(fs *fs.Fs) http.Handler {
 
 		// TODO(matěj) check permission
 
-		e = fs.Unmount(parentUuid, childUuid)
+		e = fs.Unmount(parentUUID, childUUID)
 		if e != nil {
 			encodeError(w, http.StatusInternalServerError, fmt.Errorf("parse uuid: %w", e))
 			return

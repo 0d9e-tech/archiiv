@@ -22,8 +22,8 @@ func addRoutes(
 	mux.Handle("POST /api/v1/fs/upload/{uuid}/{section}", requireLogin(secret, handleUpload(fileStore)))
 	mux.Handle("POST /api/v1/fs/touch/{uuid}/{name}", requireLogin(secret, handleTouch(fileStore)))
 	mux.Handle("POST /api/v1/fs/mkdir/{uuid}/{name}", requireLogin(secret, handleMkdir(fileStore)))
-	mux.Handle("POST /api/v1/fs/mount/{parentUuid}/{childUuid}", requireLogin(secret, handleMount(fileStore)))
-	mux.Handle("POST /api/v1/fs/unmount/{parentUuid}/{childUuid}", requireLogin(secret, handleUnmount(fileStore)))
+	mux.Handle("POST /api/v1/fs/mount/{parentUUID}/{childUUID}", requireLogin(secret, handleMount(fileStore)))
+	mux.Handle("POST /api/v1/fs/unmount/{parentUUID}/{childUUID}", requireLogin(secret, handleUnmount(fileStore)))
 
 	mux.Handle("/", http.NotFoundHandler())
 }
