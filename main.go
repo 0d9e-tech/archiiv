@@ -40,11 +40,12 @@ func newServer(
 }
 
 type config struct {
-	host      string
-	port      string
-	secret    string
-	fs_root   string
-	root_uuid uuid.UUID
+	host       string
+	port       string
+	secret     string
+	users_path string
+	fs_root    string
+	root_uuid  uuid.UUID
 }
 
 func getConfig(args []string, env func(string) string) (conf config, err error) {
@@ -53,6 +54,7 @@ func getConfig(args []string, env func(string) string) (conf config, err error) 
 	flags.StringVar(&conf.host, "host", "localhost", "")
 	flags.StringVar(&conf.port, "port", "8275", "")
 	flags.StringVar(&conf.fs_root, "fs_root", "", "")
+	flags.StringVar(&conf.users_path, "users_path", "", "")
 
 	var root_uuid_string string
 
@@ -96,7 +98,7 @@ func run(w io.Writer, args []string, env func(string) string) error {
 		return err
 	}
 
-	users, err := loadUsers("users.json")
+	users, err := loadUsers(conf.users_path)
 	if err != nil {
 		return err
 	}
@@ -107,7 +109,6 @@ func run(w io.Writer, args []string, env func(string) string) error {
 	}
 
 	srv := newServer(log, conf.secret, users, files)
-
 	httpServer := &http.Server{
 		Addr:    net.JoinHostPort(conf.host, conf.port),
 		Handler: srv,
