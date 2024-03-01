@@ -18,13 +18,13 @@ import (
 // │   ├── ...
 // │   └── 38b4183d-4df4-43dd-9495-1847083a3662
 // └── users.json
-func initFsDir() (fs_dir string, users_path string, root_uuid uuid.UUID, err error) {
-	dname, err := os.MkdirTemp("", "archiiv_test_*")
+func initFsDir() (dir string, root_uuid uuid.UUID, err error) {
+	dir, err = os.MkdirTemp("", "archiiv_test_*")
 	if err != nil {
 		return
 	}
 
-	fs_dir = filepath.Join(dname, "fs")
+	fs_dir := filepath.Join(dir, "fs")
 	if err = os.Mkdir(fs_dir, 0755); err != nil {
 		return
 	}
@@ -43,7 +43,7 @@ func initFsDir() (fs_dir string, users_path string, root_uuid uuid.UUID, err err
 	})
 
 	// create users.json
-	users_path = filepath.Join(dname, "users.json")
+	users_path := filepath.Join(dir, "users.json")
 	f2, err := os.Create(users_path)
 	if err != nil {
 		return
@@ -55,17 +55,18 @@ func initFsDir() (fs_dir string, users_path string, root_uuid uuid.UUID, err err
 	return
 }
 
-func newTestServer() (http.Handler, error) {
+func newTestServer() (http.Handler, string, error) {
 	log := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
-	fs_root, users_path, root_uuid, err := initFsDir()
+	dir, root_uuid, err := initFsDir()
+
 	if err != nil {
-		return nil, fmt.Errorf("init fs dir: %w", err)
+		return nil, "", fmt.Errorf("init fs dir: %w", err)
 	}
 
 	srv, _, err := createServer(log, []string{
-		"--fs_root", fs_root,
-		"--users_path", users_path,
+		"--fs_root", filepath.Join(dir, "fs"),
+		"--users_path", filepath.Join(dir, "users.json"),
 		"--root_uuid", root_uuid.String(),
 	}, func(s string) string {
 		if s == "ARCHIIV_SECRET" {
@@ -75,8 +76,8 @@ func newTestServer() (http.Handler, error) {
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("create server: %w", err)
+		return nil, "", fmt.Errorf("create server: %w", err)
 	}
 
-	return srv, nil
+	return srv, dir, nil
 }

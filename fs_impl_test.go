@@ -5,15 +5,17 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"os"
 )
 
 func TestEmptyServer(t *testing.T) {
 	t.Parallel()
-	srv, err := newTestServer()
+	srv, dir, err := newTestServer()
 	if err != nil {
 		t.Errorf("new test server: %v", err)
 		return
 	}
+	defer os.RemoveAll(dir)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/fs/cat/1/2", nil)
 	w := httptest.NewRecorder()
