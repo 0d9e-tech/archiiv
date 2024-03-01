@@ -2,10 +2,6 @@ package main
 
 import (
 	"archiiv/user"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"log/slog"
 	"net/http"
 )
 
@@ -31,56 +27,4 @@ func login(name, pwd string, userStore user.UserStore) (ok bool, token string) {
 	token = ""
 	ok = true
 	return
-}
-
-func handleLogin(secret string, log *slog.Logger, userStore user.UserStore) http.Handler {
-	type LoginRequest struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		dec := json.NewDecoder(r.Body)
-
-		var lr LoginRequest
-
-		if err := dec.Decode(&lr); err != nil {
-			encodeError(w, http.StatusBadRequest, fmt.Errorf("invalid json: %w", err))
-			return
-		}
-
-		name := r.FormValue("name")
-		pwd := r.FormValue("pwd")
-
-		ok, token := login(name, pwd, userStore)
-
-		if ok {
-			log.Info("New login", "user", name)
-			encodeOK(w, map[string]any{"token": token})
-			return
-		} else {
-			log.Info("Failed login", "user", name)
-			encodeError(w, http.StatusForbidden, errors.New("wrong name or password"))
-			return
-		}
-	})
-}
-
-func handleWhoami() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		name := getUsername(r)
-		encodeOK(w, struct {
-			Name string `json:"name"`
-		}{Name: name})
-	})
-}
-
-func requireLogin(secret string, h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token := getSessionToken(r)
-		if validateToken(secret, token) {
-			h.ServeHTTP(w, r)
-		} else {
-			http.Error(w, "401 unauthorized", http.StatusUnauthorized)
-		}
-	})
 }
