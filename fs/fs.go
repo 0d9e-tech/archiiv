@@ -36,6 +36,11 @@ const (
 	onlySectionPattern      = `^` + sectionPattern + `$`
 )
 
+var (
+	onlySectionPatternRegex = regexp.MustCompile(onlySectionPattern)
+	onlyFileInFsRootPatternRegex = regexp.MustCompile(onlyFileInFsRootPattern)
+)
+
 type record struct {
 	Children []uuid.UUID `json:"children,omitempty"`
 	IsDir    bool        `json:"is_dir"`
@@ -139,42 +144,8 @@ func removeUUID(s []uuid.UUID, v uuid.UUID) ([]uuid.UUID, error) {
 	return s[:len(s)-1], nil
 }
 
-func (fs *Fs) deleteRecordFilesFromDisk(name string) error {
-	entries, err := os.ReadDir(fs.basePath)
-	if err != nil {
-		return err
-	}
-
-	// list of all errors. We try to delete as many files as we can to
-	// avoid zombie files and then return one big error with all of the
-	// failed removes.
-	var errs []error
-
-	err = os.Remove(fs.path(name))
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	// TODO(prokop) keep a list of all sections instead of iterating over
-	// all files
-	for _, e := range entries {
-		if strings.HasPrefix(e.Name(), name+".") {
-			err = os.Remove(fs.path(e.Name()))
-			if err != nil {
-				errs = append(errs, err)
-			}
-		}
-	}
-
-	if len(errs) != 0 {
-		return errors.Join(errs...)
-	}
-	return nil
-}
-
 func checkSectionNameSanity(section string) error {
-	match, _ := regexp.MatchString(onlySectionPattern, section)
-	if !match {
+	if !onlySectionPatternRegex.MatchString(section) {
 		return errors.New("section name is not sane")
 	}
 	return nil
@@ -330,7 +301,6 @@ func (fs *Fs) loadRecords() error {
 		return err
 	}
 
-	var sectionFiles []string
 	var recordFiles []string
 
 	for _, e := range entries {
@@ -340,15 +310,12 @@ func (fs *Fs) loadRecords() error {
 
 		name := e.Name()
 
-		match, _ := regexp.MatchString(onlyFileInFsRootPattern, name)
-		if !match {
+		if !onlyFileInFsRootPatternRegex.MatchString(name) {
 			return errors.New("garbage file in fs root")
 		}
 
 		if len(name) == 36 {
 			recordFiles = append(recordFiles, name)
-		} else {
-			sectionFiles = append(sectionFiles, name)
 		}
 	}
 

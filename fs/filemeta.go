@@ -20,10 +20,9 @@ type FileMeta struct {
 	Hooks     []string         `json:"hooks"`
 	CreatedBy string           `json:"createdBy"`
 	CreatedAt uint64           `json:"createdAt"`
-	rec       *record
 }
 
-func readFileMeta(fs *Fs, file uuid.UUID) (fm FileMeta, err error) {
+func ReadFileMeta(fs *Fs, file uuid.UUID) (fm FileMeta, err error) {
 	r, err := fs.OpenSection(file, "meta")
 	if err != nil {
 		return
@@ -34,7 +33,7 @@ func readFileMeta(fs *Fs, file uuid.UUID) (fm FileMeta, err error) {
 	return
 }
 
-func writeFileMeta(fs *Fs, file uuid.UUID, fm FileMeta) error {
+func WriteFileMeta(fs *Fs, file uuid.UUID, fm FileMeta) error {
 	w, err := fs.CreateSection(file, "meta")
 	if err != nil {
 		return err

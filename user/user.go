@@ -51,8 +51,8 @@ func (us UserStore) syncToDisk() error {
 	return nil
 }
 
-func (self UserStore) CheckPassword(name, pwd string) bool {
-	return self.users[name] == pwd
+func (us UserStore) CheckPassword(name, pwd string) bool {
+	return us.users[name] == pwd
 }
 
 func (us UserStore) CreateUser(name, pwd string) error {
