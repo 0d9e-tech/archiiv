@@ -1,45 +1,31 @@
 ## File Storage
 
-Archív has it's own fs, which stores **records** in a single folder in a flat
-structure. Each record has it's own UUID, which matches the Archív file it
-stores.
+Archív has it's own fs implemented on top of the system's fs.
 
-For each record, there is a file named by it's UUID, which stores a JSON
-describing two things: the record's name and a list of UUIDs. These are UUIDs of
-the records **mounted** to the record.
+files dont have a content in a traditional sense. instead, each file has
+multiple separate contents called sections. The tradition main content is in the
+'data' section. Metadata is stored in the 'meta' section, hooks can create own
+sections for example to store image thumbnails or image exif metadata
 
-Each record can also have **sections**. Those are stored as separate files in
-the format `$UUID.$RECORD_NAME`.
-
-Records are reference counted. If the count reaches zero, the record and all the
-sections are removed from the drive.
+For implementation details see the big comment in fs/fs.go
 
 ## Sharing
 
 ### UX
 
-If you want to select the file, the client will allow you to choose what
-people/groups you want to share it with. Then you will get the file's UUID or a
-link, which you can share with the people. When the people receive your UUID,
-they can enter it into their archív client and add the file to any location they
-choose.
+To share a file, modify the file permissions to be accessible to the target
+users and then share the file uuid through some external channel to the target
+user.
+
+The target user then mounts this uuid in their directory of choice.
 
 This will not create any new copies of the shared file. If someone you shared
 the file with has write permissions and edits the file, others will see the
 changes too. If you want to revoke the file share, you can just remove the read
-and write permissions from the people you don't want to have the file. The
-archív server will recognize this action and remove the file link from the
-user's directory.
+and write permissions from the people you don't want to have the file.
 
-Sharing with other people can be only done by people with the `mw` permission
-bit. Giving this to someone else essentially gives them the ownership of the
-file.
-
-### Implementation
-
-To share files, archív will implement a feature to link to a file by UUID. To
-see how this feature is implemented, refer to the File Storage section of this
-document.
+Sharing with other people can be only done by people with the `owner` permission
+bit.
 
 ## Permissions
 
@@ -59,19 +45,7 @@ groups of users.
 
 ## Metadata
 
-```
-{
-  "uuid": back link to the fs record,
-  "type": MIME type of the data record,
-  "perms": {
-    "username": bit field with permissions,
-    ...
-  },
-  "hooks": list of required hooks,
-  "createdBy": username of creator,
-  "createdAt": time of creation,
-}
-```
+see fs/filemeta.go
 
 ## Upload Hooks
 
@@ -81,11 +55,8 @@ enabled by globs or per file.
 Directory hooks are triggered when a file in the is uploaded into/deleted from
 the directory.
 
-Archiiv offers upload hooks functionality, which run some code on the uploaded
-files. They can be enabled and configured in the config json. Hooks can either
-be ran for a file glob, or they can be specifically requested in the metadata
-json. In case of directories, the hooks are ran whenever a file is uploaded to
-the directory.
+Hooks can modify the uploaded file, create/modify/delete other files/directories
+and use external programs to do so.
 
 Hook ideas:
 
@@ -95,6 +66,7 @@ Hook ideas:
 | Thumbnails | Creates thumbnails from the files.                                       |
 | Archiver   | Backups the file or directory in a compressed archive.                   |
 | Exec       | Executes an external process.                                            |
+| ImgConvert | Converts uploaded image into a sane format and compression quality       |
 
 ## API
 
