@@ -12,7 +12,8 @@ const (
 	PermWrite
 )
 
-// Metadata stored with each file in it's 'meta' section
+// FileMeta contains the metadata asociated with each file. It is saved in the
+// 'meta' section
 type FileMeta struct {
 	UUID      uuid.UUID        `json:"uuid"`
 	Type      string           `json:"type"`

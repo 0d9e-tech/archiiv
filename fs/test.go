@@ -8,6 +8,8 @@ import (
 	"github.com/google/uuid"
 )
 
+// InitFsDir creates the following directory structure:
+//
 // /tmp/archiiv_test_295721899
 // ├── fs
 // │   ├── ...

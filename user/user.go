@@ -1,3 +1,5 @@
+// Package user manipulates the users.json file and provides a simple API for
+// the endpoints
 package user
 
 import (

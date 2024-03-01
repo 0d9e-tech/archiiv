@@ -1,14 +1,16 @@
+// Package fs handles interactions with the system fs and how the data is
+// serialised. It exposes a simple API that is used by the endpoints
 package fs
 
 // the directory tree is modeled using the Records structs
 // they are reference counted and thus are forbidden to form cycles
-
+//
 // Records are saved as $fs_root/$uuid
-
+//
 // Records contain sections saved as $fs_root/$uuid.$section The file payload
 // is saved in the 'data' section. metadata is in 'meta'. hooks can create own
 // sections
-
+//
 // External function, which take UUIDs as inputs are thread safe. Internal
 // functions, which take pointers to records instead are not thread safe.
 
