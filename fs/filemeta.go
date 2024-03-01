@@ -1,4 +1,4 @@
-package main
+package fs
 
 import (
 	"encoding/json"
@@ -13,18 +13,18 @@ const (
 )
 
 // Metadata stored with each file in it's 'meta' section
-type fileMeta struct {
+type FileMeta struct {
 	UUID      uuid.UUID        `json:"uuid"`
 	Type      string           `json:"type"`
 	Perms     map[string]uint8 `json:"perms"`
 	Hooks     []string         `json:"hooks"`
 	CreatedBy string           `json:"createdBy"`
 	CreatedAt uint64           `json:"createdAt"`
-	rec       *Record
+	rec       *record
 }
 
-func readFileMeta(fs fileStorer, file uuid.UUID) (fm fileMeta, err error) {
-	r, err := fs.openSection(file, "meta")
+func readFileMeta(fs *Fs, file uuid.UUID) (fm FileMeta, err error) {
+	r, err := fs.OpenSection(file, "meta")
 	if err != nil {
 		return
 	}
@@ -34,8 +34,8 @@ func readFileMeta(fs fileStorer, file uuid.UUID) (fm fileMeta, err error) {
 	return
 }
 
-func writeFileMeta(fs fileStorer, file uuid.UUID, fm fileMeta) error {
-	w, err := fs.createSection(file, "meta")
+func writeFileMeta(fs *Fs, file uuid.UUID, fm FileMeta) error {
+	w, err := fs.CreateSection(file, "meta")
 	if err != nil {
 		return err
 	}

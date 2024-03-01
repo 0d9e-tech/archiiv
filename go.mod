@@ -1,4 +1,4 @@
-module github.com/0d9e-tech/archiiv
+module archiiv
 
 go 1.22
 

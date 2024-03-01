@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"time"
+	"archiiv/fs"
 
 	"github.com/google/uuid"
 )
@@ -39,7 +40,7 @@ func createServer(log *slog.Logger, args []string, env func(string) string) (htt
 		return nil, config{}, fmt.Errorf("load users: %w", err)
 	}
 
-	files, err := newFs(conf.root_uuid, conf.fs_root)
+	files, err := fs.NewFs(conf.root_uuid, conf.fs_root)
 	if err != nil {
 		return nil, config{}, fmt.Errorf("new fs: %w", err)
 	}

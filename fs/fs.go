@@ -1,4 +1,4 @@
-package main
+package fs
 
 // the directory tree is modeled using the Records structs
 // they are reference counted and thus are forbidden to form cycles
@@ -36,7 +36,7 @@ const (
 	onlySectionPattern      = `^` + sectionPattern + `$`
 )
 
-type Record struct {
+type record struct {
 	Children []uuid.UUID `json:"children,omitempty"`
 	IsDir    bool        `json:"is_dir"`
 	Name     string      `json:"name"`
@@ -45,22 +45,22 @@ type Record struct {
 	mutex    sync.Mutex  `json:"-"`
 }
 
-func (r *Record) lock() {
+func (r *record) lock() {
 	r.mutex.Lock()
 }
 
-func (r *Record) unlock() {
+func (r *record) unlock() {
 	r.mutex.Unlock()
 }
 
 type Fs struct {
 	lock     sync.RWMutex
-	records  map[uuid.UUID]*Record
+	records  map[uuid.UUID]*record
 	root     uuid.UUID
 	basePath string
 }
 
-func (fs *Fs) getRecord(u uuid.UUID) (*Record, error) {
+func (fs *Fs) getRecord(u uuid.UUID) (*record, error) {
 	fs.lock.RLock()
 	defer fs.lock.Unlock()
 	r, e := fs.records[u]
@@ -70,7 +70,7 @@ func (fs *Fs) getRecord(u uuid.UUID) (*Record, error) {
 	return r, nil
 }
 
-func (fs *Fs) setRecord(r *Record) {
+func (fs *Fs) setRecord(r *record) {
 	fs.lock.Lock()
 	defer fs.lock.Unlock()
 	fs.records[r.id] = r
@@ -81,7 +81,7 @@ func (fs *Fs) path(p string) string {
 	return filepath.Join(fs.basePath, p)
 }
 
-func (fs *Fs) writeRecord(r *Record) error {
+func (fs *Fs) writeRecord(r *record) error {
 	f, err := os.Create(fs.path(r.id.String()))
 	if err != nil {
 		return err
@@ -92,8 +92,8 @@ func (fs *Fs) writeRecord(r *Record) error {
 	return enc.Encode(r)
 }
 
-func (fs *Fs) newRecord(parent *Record, name string, dir bool) (*Record, error) {
-	child := new(Record)
+func (fs *Fs) newRecord(parent *record, name string, dir bool) (*record, error) {
+	child := new(record)
 	child.Children = []uuid.UUID{}
 	child.id = uuid.New()
 	child.Name = name
@@ -184,9 +184,9 @@ func (fs *Fs) getSectionFileName(file uuid.UUID, section string) string {
 	return fs.path(file.String() + "." + section)
 }
 
-func (fs *Fs) deleteRecord(r *Record) error {
+func (fs *Fs) deleteRecord(r *record) error {
 	for _, u := range r.Children {
-		err := fs.unmount(r.id, u)
+		err := fs.Unmount(r.id, u)
 		if err != nil {
 			return err
 		}
@@ -207,16 +207,15 @@ func (fs *Fs) deleteRecord(r *Record) error {
 	return nil
 }
 
-// fileStorer impl
-func (fs *Fs) getRoot() uuid.UUID {
+func (fs *Fs) GetRoot() uuid.UUID {
 	return fs.root
 }
 
-func (fs *Fs) getChildren(u uuid.UUID) ([]uuid.UUID, error) {
+func (fs *Fs) GetChildren(u uuid.UUID) ([]uuid.UUID, error) {
 	return fs.records[u].Children, nil
 }
 
-func (fs *Fs) mkdir(parentUUID uuid.UUID, name string) (uuid.UUID, error) {
+func (fs *Fs) Mkdir(parentUUID uuid.UUID, name string) (uuid.UUID, error) {
 	parent, err := fs.getRecord(parentUUID)
 	if err != nil {
 		return uuid.UUID{}, nil
@@ -226,7 +225,7 @@ func (fs *Fs) mkdir(parentUUID uuid.UUID, name string) (uuid.UUID, error) {
 	return r.id, err
 }
 
-func (fs *Fs) touch(parentUUID uuid.UUID, name string) (uuid.UUID, error) {
+func (fs *Fs) Touch(parentUUID uuid.UUID, name string) (uuid.UUID, error) {
 	parent, err := fs.getRecord(parentUUID)
 	if err != nil {
 		return uuid.UUID{}, err
@@ -236,7 +235,7 @@ func (fs *Fs) touch(parentUUID uuid.UUID, name string) (uuid.UUID, error) {
 	return r.id, err
 }
 
-func (fs *Fs) unmount(parentUUID uuid.UUID, childUUID uuid.UUID) error {
+func (fs *Fs) Unmount(parentUUID uuid.UUID, childUUID uuid.UUID) error {
 	parent, err := fs.getRecord(parentUUID)
 	if err != nil {
 		return err
@@ -271,7 +270,7 @@ func (fs *Fs) unmount(parentUUID uuid.UUID, childUUID uuid.UUID) error {
 	return nil
 }
 
-func (fs *Fs) mount(parent uuid.UUID, newChild uuid.UUID) error {
+func (fs *Fs) Mount(parent uuid.UUID, newChild uuid.UUID) error {
 	child, err := fs.getRecord(newChild)
 	if err != nil {
 		return err
@@ -299,7 +298,7 @@ func (fs *Fs) mount(parent uuid.UUID, newChild uuid.UUID) error {
 	return fs.writeRecord(rec)
 }
 
-func (fs *Fs) openSection(uuid uuid.UUID, section string) (io.ReadCloser, error) {
+func (fs *Fs) OpenSection(uuid uuid.UUID, section string) (io.ReadCloser, error) {
 	err := checkSectionNameSanity(section)
 	if err != nil {
 		return nil, err
@@ -307,7 +306,7 @@ func (fs *Fs) openSection(uuid uuid.UUID, section string) (io.ReadCloser, error)
 	return os.Open(fs.getSectionFileName(uuid, section))
 }
 
-func (fs *Fs) createSection(uuid uuid.UUID, section string) (io.WriteCloser, error) {
+func (fs *Fs) CreateSection(uuid uuid.UUID, section string) (io.WriteCloser, error) {
 	err := checkSectionNameSanity(section)
 	if err != nil {
 		return nil, err
@@ -316,7 +315,7 @@ func (fs *Fs) createSection(uuid uuid.UUID, section string) (io.WriteCloser, err
 	return os.Create(fs.getSectionFileName(uuid, section))
 }
 
-func (fs *Fs) deleteSection(uuid uuid.UUID, section string) error {
+func (fs *Fs) DeleteSection(uuid uuid.UUID, section string) error {
 	err := checkSectionNameSanity(section)
 	if err != nil {
 		return err
@@ -324,8 +323,6 @@ func (fs *Fs) deleteSection(uuid uuid.UUID, section string) error {
 
 	return os.Remove(fs.getSectionFileName(uuid, section))
 }
-
-//---
 
 func (fs *Fs) loadRecords() error {
 	entries, err := os.ReadDir(fs.basePath)
@@ -367,7 +364,7 @@ func (fs *Fs) loadRecords() error {
 		}
 		defer f.Close()
 
-		rec := new(Record)
+		rec := new(record)
 		dec := json.NewDecoder(f)
 		err = dec.Decode(rec)
 		if err != nil {
@@ -381,16 +378,16 @@ func (fs *Fs) loadRecords() error {
 	return nil
 }
 
-func checkLoadedRecordsAreSane(map[uuid.UUID]*Record) error {
+func checkLoadedRecordsAreSane(map[uuid.UUID]*record) error {
 	// TODO(prokop)
 	return nil
 }
 
-func newFs(root uuid.UUID, basePath string) (fs *Fs, err error) {
+func NewFs(root uuid.UUID, basePath string) (fs *Fs, err error) {
 	fs = new(Fs)
 	fs.basePath = basePath
 	fs.root = root
-	fs.records = make(map[uuid.UUID]*Record)
+	fs.records = make(map[uuid.UUID]*record)
 
 	err = fs.loadRecords()
 	if err != nil {

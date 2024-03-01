@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"archiiv/fs"
 
 	"github.com/google/uuid"
 )
 
-func handleLs(fileStore fileStorer) http.Handler {
+func handleLs(fs *fs.Fs) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		uuidArg := r.PathValue("uuid")
 
@@ -18,7 +19,7 @@ func handleLs(fileStore fileStorer) http.Handler {
 			return
 		}
 
-		ch, e := fileStore.getChildren(id)
+		ch, e := fs.GetChildren(id)
 		if e != nil {
 			encodeError(w, http.StatusNotFound, fmt.Errorf("file not found: %w", e))
 			return
@@ -30,7 +31,7 @@ func handleLs(fileStore fileStorer) http.Handler {
 	})
 }
 
-func handleCat(fileStore fileStorer) http.Handler {
+func handleCat(fs *fs.Fs) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		uuidArg := r.PathValue("uuid")
 		sectionArg := r.PathValue("section")
@@ -43,7 +44,7 @@ func handleCat(fileStore fileStorer) http.Handler {
 
 		// TODO check permission
 
-		sectionReader, e := fileStore.openSection(id, sectionArg)
+		sectionReader, e := fs.OpenSection(id, sectionArg)
 		if e != nil {
 			encodeError(w, http.StatusInternalServerError, fmt.Errorf("open section: %w", e))
 			return
@@ -58,7 +59,7 @@ func handleCat(fileStore fileStorer) http.Handler {
 	})
 }
 
-func handleUpload(fileStore fileStorer) http.Handler {
+func handleUpload(fs *fs.Fs) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		uuidArg := r.PathValue("uuid")
 		sectionArg := r.PathValue("section")
@@ -71,7 +72,7 @@ func handleUpload(fileStore fileStorer) http.Handler {
 
 		// TODO check permission
 
-		sectionWriter, e := fileStore.createSection(uuid, sectionArg)
+		sectionWriter, e := fs.CreateSection(uuid, sectionArg)
 		if e != nil {
 			encodeError(w, http.StatusInternalServerError, fmt.Errorf("create section: %w", e))
 			return
@@ -86,7 +87,7 @@ func handleUpload(fileStore fileStorer) http.Handler {
 	})
 }
 
-func handleTouch(fileStore fileStorer) http.Handler {
+func handleTouch(fs *fs.Fs) http.Handler {
 	type OkResponse struct {
 		NewFileUuid uuid.UUID `json:"new_file_uuid"`
 	}
@@ -103,7 +104,7 @@ func handleTouch(fileStore fileStorer) http.Handler {
 
 		// TODO check permission
 
-		fileId, e := fileStore.touch(parentId, name)
+		fileId, e := fs.Touch(parentId, name)
 		if e != nil {
 			encodeError(w, http.StatusInternalServerError, fmt.Errorf("touch: %w", e))
 			return
@@ -113,7 +114,7 @@ func handleTouch(fileStore fileStorer) http.Handler {
 	})
 }
 
-func handleMkdir(fileStore fileStorer) http.Handler {
+func handleMkdir(fs *fs.Fs) http.Handler {
 	type OkResponse struct {
 		NewDirUuid uuid.UUID `json:"new_dir_uuid"`
 	}
@@ -130,7 +131,7 @@ func handleMkdir(fileStore fileStorer) http.Handler {
 
 		// TODO check permission
 
-		fileId, e := fileStore.mkdir(id, name)
+		fileId, e := fs.Mkdir(id, name)
 		if e != nil {
 			encodeError(w, http.StatusInternalServerError, fmt.Errorf("mkdir: %w", e))
 			return
@@ -140,7 +141,7 @@ func handleMkdir(fileStore fileStorer) http.Handler {
 	})
 }
 
-func handleMount(fileStore fileStorer) http.Handler {
+func handleMount(fs *fs.Fs) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		parentArg := r.PathValue("parentUuid")
 		childArg := r.PathValue("childUuid")
@@ -159,7 +160,7 @@ func handleMount(fileStore fileStorer) http.Handler {
 
 		// TODO check permission
 
-		e = fileStore.mount(parentUuid, childUuid)
+		e = fs.Mount(parentUuid, childUuid)
 		if e != nil {
 			encodeError(w, http.StatusInternalServerError, fmt.Errorf("parse uuid: %w", e))
 			return
@@ -169,7 +170,7 @@ func handleMount(fileStore fileStorer) http.Handler {
 	})
 }
 
-func handleUnmount(fileStore fileStorer) http.Handler {
+func handleUnmount(fs *fs.Fs) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		parentArg := r.PathValue("parentUuid")
 		childArg := r.PathValue("childUuid")
@@ -188,7 +189,7 @@ func handleUnmount(fileStore fileStorer) http.Handler {
 
 		// TODO check permission
 
-		e = fileStore.unmount(parentUuid, childUuid)
+		e = fs.Unmount(parentUuid, childUuid)
 		if e != nil {
 			encodeError(w, http.StatusInternalServerError, fmt.Errorf("parse uuid: %w", e))
 			return
