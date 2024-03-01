@@ -24,7 +24,7 @@ func TestEmptyServer(t *testing.T) {
 	defer res.Body.Close()
 	_, err = ioutil.ReadAll(res.Body)
 
-	if (res.StatusCode != 400) {
+	if res.StatusCode != 400 {
 		t.Errorf("expected to fail. got %v", res.StatusCode)
 	}
 }

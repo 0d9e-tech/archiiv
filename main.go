@@ -55,7 +55,7 @@ func createServer(log *slog.Logger, args []string, env func(string) string) (htt
 	var srv http.Handler = mux
 	srv = logAccesses(log, srv)
 
-	return srv, conf ,nil
+	return srv, conf, nil
 }
 
 type config struct {
