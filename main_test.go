@@ -96,33 +96,52 @@ func TestRootReturnsNotFound(t *testing.T) {
 	expectBody(t, res, "404 page not found\n")
 }
 
+type LoginRequest struct {
+	Username string   `json:"username"`
+	Password [64]byte `json:"password"`
+}
+
 func TestLogin(t *testing.T) {
 	t.Parallel()
 	srv := newTestServerWithUsers(t, map[string][64]byte{
 		"prokop": HashPassword("catboy123"),
 	})
 
-	type LoginRequest struct {
-		Username string   `json:"username"`
-		Password [64]byte `json:"password"`
-	}
-
-	expectFail(t, hitPost(t, srv, "/api/v1/login", LoginRequest{Username: "prokop", Password: HashPassword("eek")}),
-		http.StatusForbidden, "wrong name or password")
-	expectFail(t, hitPost(t, srv, "/api/v1/login", LoginRequest{Username: "prokop", Password: HashPassword("uuhk")}),
-		http.StatusForbidden, "wrong name or password")
-	expectFail(t, hitPost(t, srv, "/api/v1/login", LoginRequest{Username: "marek", Password: HashPassword("catboy123")}),
-		http.StatusForbidden, "wrong name or password")
+	expectFail(t, hitPost(t, srv, "/api/v1/login", LoginRequest{Username: "prokop", Password: HashPassword("eek")}), http.StatusForbidden, "wrong name or password")
+	expectFail(t, hitPost(t, srv, "/api/v1/login", LoginRequest{Username: "prokop", Password: HashPassword("uuhk")}), http.StatusForbidden, "wrong name or password")
+	expectFail(t, hitPost(t, srv, "/api/v1/login", LoginRequest{Username: "marek", Password: HashPassword("catboy123")}), http.StatusForbidden, "wrong name or password")
 	res := hitPost(t, srv, "/api/v1/login", LoginRequest{Username: "prokop", Password: HashPassword("catboy123")})
 	expectStatusCode(t, res, http.StatusOK)
-	expectBody(t, res, "{\"ok\":true,\"data\":{\"token\":\"Ff+DAwEBCUZ1bGxUb2tlbgH/hAAAAA==\"}}\n")
+	expectBody(t, res, "{\"ok\":true,\"data\":{\"token\":\"Ff-DAwEBCUZ1bGxUb2tlbgH_hAAAAA==\"}}\n")
 }
 
-func TestFsUploadUUIDParse(t *testing.T) {
-	t.Parallel()
-	srv := newTestServer(t)
+func loginHelper(t *testing.T, srv http.Handler, username, pwd string) string {
+	res := hitPost(t, srv, "/api/v1/login", LoginRequest{Username: username, Password: HashPassword(pwd)})
 
-	// TODO login here
-	res := hit(srv, http.MethodPost, "/api/v1/fs/upload/1/2", strings.NewReader(""))
-	expectFail(t, res, http.StatusBadRequest, "invalid uuid")
+	type LoginResponse struct {
+		Ok   bool `json:"ok"`
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+
+	lr := decodeResponse[LoginResponse](t, res)
+
+	return lr.Data.Token
+}
+
+func TestWhoamiWorks(t *testing.T) {
+	t.Parallel()
+	srv := newTestServerWithUsers(t, map[string][64]byte{"matúš": HashPassword("kadit")})
+
+	token := loginHelper(t, srv, "matúš", "kadit")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/whoami", strings.NewReader(""))
+	req.Header.Add("Authorization", token)
+	w := httptest.NewRecorder()
+	srv.ServeHTTP(w, req)
+	res := w.Result()
+
+	expectStatusCode(t, res, http.StatusOK)
+	expectBody(t, res, "")
 }

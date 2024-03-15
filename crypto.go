@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/gob"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"time"
@@ -30,7 +31,7 @@ func GenerateSecret() string {
 		panic(err)
 	}
 	seed := priv.Seed()
-	return base64.StdEncoding.EncodeToString(seed)
+	return base64.URLEncoding.EncodeToString(seed)
 }
 
 func HashPassword(pwd string) [64]byte {
@@ -38,7 +39,7 @@ func HashPassword(pwd string) [64]byte {
 }
 
 func secretToKeys(secretStr string) (priv ed25519.PrivateKey, err error) {
-	secret, err := base64.StdEncoding.DecodeString(secretStr)
+	secret, err := base64.URLEncoding.DecodeString(secretStr)
 	if err != nil {
 		return nil, err
 	}
@@ -51,6 +52,22 @@ func payloadToBytes(p TokenPayload) []byte {
 	enc := gob.NewEncoder(&buf)
 	enc.Encode(p)
 	return buf.Bytes()
+}
+
+func gobEncode(v any) []byte {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	enc.Encode(v)
+	return buf.Bytes()
+}
+
+func gobDecode[T any](d []byte) (T, error) {
+	dec := gob.NewDecoder(bytes.NewReader(d))
+	var v T
+	if err := dec.Decode(&v); err != nil {
+		return v, fmt.Errorf("gob decode: %v", err)
+	}
+	return v, nil
 }
 
 func Sign(username, secret string) (string, error) {
@@ -73,7 +90,7 @@ func Sign(username, secret string) (string, error) {
 
 	priv, err := secretToKeys(secret)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("derive key from secret: %v", err)
 	}
 
 	signature, err := priv.Sign(nil, payloadBytes, &ed25519.Options{})
@@ -81,43 +98,38 @@ func Sign(username, secret string) (string, error) {
 		return "", err
 	}
 
-	tok := FullToken{
+	fullTokenBytes := gobEncode(FullToken{
 		data: payload,
 		sign: signature,
-	}
+	})
 
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	enc.Encode(tok)
-
-	return base64.StdEncoding.EncodeToString(buf.Bytes()), nil
+	return base64.URLEncoding.EncodeToString(fullTokenBytes), nil
 }
 
 func VerifySignature(dataStr, secret string, maxAge time.Duration) (string, error) {
-	data, err := base64.StdEncoding.DecodeString(dataStr)
+	data, err := base64.URLEncoding.DecodeString(dataStr)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("base64 decode token: %v", err)
 	}
 
-	dec := gob.NewDecoder(bytes.NewReader(data))
-	var ft FullToken
-	if err := dec.Decode(&ft); err != nil {
-		return "", err
+	ft, err := gobDecode[FullToken](data)
+	if err != nil {
+		return "", fmt.Errorf("decode FullToken: %v", err)
 	}
 
 	priv, err := secretToKeys(secret)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("derive key from secret: %v", err)
 	}
 
 	payloadBytes := payloadToBytes(ft.data)
 
 	if !ed25519.Verify(priv.Public().(ed25519.PublicKey), payloadBytes, ft.sign) {
-		return "", errors.New("Signature is invalid")
+		return "", errors.New("signature is invalid")
 	}
 
 	if time.Since(ft.data.Timestamp).Microseconds() > maxAge.Microseconds() {
-		return "", errors.New("Signature is too old")
+		return "", errors.New("signature is too old")
 	}
 
 	return ft.data.Username, nil

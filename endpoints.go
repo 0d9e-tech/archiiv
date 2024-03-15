@@ -32,7 +32,7 @@ func requireLogin(secret string, h http.Handler) http.Handler {
 
 func handleLogin(secret string, log *slog.Logger, userStore user.UserStore) http.Handler {
 	type LoginRequest struct {
-		Username string `json:"username"`
+		Username string   `json:"username"`
 		Password [64]byte `json:"password"`
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
