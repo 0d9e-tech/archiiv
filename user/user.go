@@ -18,7 +18,7 @@ type UserStore struct {
 }
 
 func LoadUsers(path string) (UserStore, error) {
-	path = filepath.Clean(path);
+	path = filepath.Clean(path)
 	usersFile, err := os.OpenFile(path, os.O_RDWR, 0)
 	if err != nil {
 		panic(err)
