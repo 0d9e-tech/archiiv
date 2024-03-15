@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 )
@@ -14,45 +13,38 @@ import (
 type UserStore struct {
 	// username to hashed password
 	users map[string]string
-	file  *os.File
-}
-
-func LoadUsers(path string) (UserStore, error) {
-	path = filepath.Clean(path)
-	usersFile, err := os.OpenFile(path, os.O_RDWR, 0)
-	if err != nil {
-		panic(err)
-	}
-
-	var us UserStore
-
-	us.file = usersFile
-
-	err = json.NewDecoder(usersFile).Decode(&us.users)
-	if err != nil {
-		return us, fmt.Errorf("decode users file: %w", err)
-	}
-
-	return us, err
+	// path of the users file
+	path string
 }
 
 func (us UserStore) syncToDisk() error {
-	_, err := us.file.Seek(0, io.SeekStart)
+	file, err := os.Create(us.path)
 	if err != nil {
 		return err
 	}
 
-	err = us.file.Truncate(0)
-	if err != nil {
-		return err
-	}
-
-	err = json.NewEncoder(us.file).Encode(us.users)
+	err = json.NewEncoder(file).Encode(us.users)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func LoadUsers(path string) (us UserStore, err error) {
+	us.path = filepath.Clean(path)
+
+	usersFile, err := os.OpenFile(us.path, os.O_RDWR, 0)
+	if err != nil {
+		return
+	}
+
+	if err = json.NewDecoder(usersFile).Decode(&us.users); err != nil {
+		err = fmt.Errorf("decode users file: %w", err)
+		return
+	}
+
+	return
 }
 
 func (us UserStore) CheckPassword(name, pwd string) bool {
@@ -67,6 +59,7 @@ func (us UserStore) CreateUser(name, pwd string) error {
 
 		err := us.syncToDisk()
 		if err != nil {
+			// undo the insert to keep the table consistent
 			delete(us.users, name)
 			return fmt.Errorf("createUser: %w", err)
 		}
@@ -85,10 +78,12 @@ func (us UserStore) DeleteUser(name string) error {
 
 	err := us.syncToDisk()
 	if err != nil {
+		// undo the delete to keep the table consistent
 		us.users[name] = pwd
 		return fmt.Errorf("deleteUser: %w", err)
 	}
 
-	// TODO: GC user files
+	// TODO: GC user files here?
+
 	return nil
 }
