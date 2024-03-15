@@ -25,7 +25,7 @@ func requireLogin(secret string, h http.Handler) http.Handler {
 		if validateToken(secret, token) {
 			h.ServeHTTP(w, r)
 		} else {
-			http.Error(w, "401 unauthorized", http.StatusUnauthorized)
+			encodeError(w, http.StatusUnauthorized, errors.New("401 unauthorized"))
 		}
 	})
 }
@@ -41,7 +41,7 @@ func handleLogin(secret string, log *slog.Logger, userStore user.UserStore) http
 			encodeError(w, http.StatusBadRequest, errors.New("wrong name or password"))
 		}
 
-		ok, token := login(lr.Username, lr.Password, userStore)
+		ok, token := login(lr.Username, lr.Password, secret, userStore)
 
 		if ok {
 			log.Info("New login", "user", lr.Username)
@@ -55,9 +55,9 @@ func handleLogin(secret string, log *slog.Logger, userStore user.UserStore) http
 	})
 }
 
-func handleWhoami() http.Handler {
+func handleWhoami(secret string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		name := getUsername(r)
+		name := getUsername(r, secret)
 		encodeOK(w, struct {
 			Name string `json:"name"`
 		}{Name: name})

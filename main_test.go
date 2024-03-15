@@ -72,7 +72,7 @@ func TestWhoamiNeedsLogin(t *testing.T) {
 	srv := newTestServer(t)
 
 	res := hitGet(srv, "/api/v1/whoami")
-	expectFail(t, res, http.StatusUnauthorized, "Unauthorized")
+	expectFail(t, res, http.StatusUnauthorized, "401 unauthorized")
 }
 
 func TestRootReturnsNotFound(t *testing.T) {

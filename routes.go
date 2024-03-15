@@ -15,7 +15,7 @@ func addRoutes(
 	fileStore *fs.Fs,
 ) {
 	mux.Handle("POST /api/v1/login", handleLogin(secret, log, userStore))
-	mux.Handle("GET /api/v1/whoami", requireLogin(secret, handleWhoami()))
+	mux.Handle("GET /api/v1/whoami", requireLogin(secret, handleWhoami(secret)))
 
 	mux.Handle("GET /api/v1/fs/ls/{uuid}", requireLogin(secret, handleLs(fileStore)))
 	mux.Handle("GET /api/v1/fs/cat/{uuid}/{section}", requireLogin(secret, handleCat(fileStore)))
