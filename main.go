@@ -77,22 +77,8 @@ func getConfig(args []string, env func(string) string) (conf config, err error) 
 	flags.StringVar(&conf.port, "port", "8275", "")
 	flags.StringVar(&conf.fsRoot, "fs_root", "", "")
 	flags.StringVar(&conf.usersPath, "users_path", "", "")
-
-	if !filepath.IsAbs(conf.fsRoot) {
-		err = fmt.Errorf("fs root must be absolute path")
-		return
-	}
-
-	if !filepath.IsAbs(conf.usersPath) {
-		err = fmt.Errorf("users path must be absolute path")
-		return
-	}
-
 	var rootUUIDString string
-
 	flags.StringVar(&rootUUIDString, "root_uuid", "", "")
-
-	conf.secret = env("ARCHIIV_SECRET")
 
 	err = flags.Parse(args)
 	if err != nil {
@@ -100,8 +86,19 @@ func getConfig(args []string, env func(string) string) (conf config, err error) 
 		return
 	}
 
-	conf.rootUUID, err = uuid.Parse(rootUUIDString)
+	if !filepath.IsAbs(conf.fsRoot) {
+		err = fmt.Errorf("fs root must be absolute path (is %#v)", conf.fsRoot)
+		return
+	}
 
+	if !filepath.IsAbs(conf.usersPath) {
+		err = fmt.Errorf("users path must be absolute path (is %#v)", conf.usersPath)
+		return
+	}
+
+	conf.secret = env("ARCHIIV_SECRET")
+
+	conf.rootUUID, err = uuid.Parse(rootUUIDString)
 	if err != nil {
 		err = fmt.Errorf("uuid parse: %w", err)
 		return
