@@ -39,7 +39,7 @@ const (
 )
 
 var (
-	onlySectionPatternRegex = regexp.MustCompile(onlySectionPattern)
+	onlySectionPatternRegex      = regexp.MustCompile(onlySectionPattern)
 	onlyFileInFsRootPatternRegex = regexp.MustCompile(onlyFileInFsRootPattern)
 )
 
@@ -173,7 +173,10 @@ func (fs *Fs) deleteRecord(r *record) error {
 	idStr := r.id.String()
 	for _, e := range entries {
 		if strings.HasPrefix(e.Name(), idStr) {
-			os.Remove(e.Name())
+			err = os.Remove(e.Name())
+			if err != nil {
+				return err
+			}
 		}
 	}
 

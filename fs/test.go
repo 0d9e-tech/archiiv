@@ -17,13 +17,15 @@ import (
 // │   └── 38b4183d-4df4-43dd-9495-1847083a3662
 // └── users.json
 func InitFsDir() (dir string, rootUUID uuid.UUID, err error) {
+	dir = filepath.Clean(dir);
+
 	dir, err = os.MkdirTemp("", "archiiv_test_*")
 	if err != nil {
 		return
 	}
 
 	fsDir := filepath.Join(dir, "fs")
-	if err = os.Mkdir(fsDir, 0755); err != nil {
+	if err = os.Mkdir(fsDir, 0750); err != nil {
 		return
 	}
 

@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/google/uuid"
@@ -76,6 +77,16 @@ func getConfig(args []string, env func(string) string) (conf config, err error) 
 	flags.StringVar(&conf.port, "port", "8275", "")
 	flags.StringVar(&conf.fsRoot, "fs_root", "", "")
 	flags.StringVar(&conf.usersPath, "users_path", "", "")
+
+	if (!filepath.IsAbs(conf.fsRoot)) {
+		err = fmt.Errorf("fs root must be absolute path");
+		return
+	}
+
+	if (!filepath.IsAbs(conf.usersPath)) {
+		err = fmt.Errorf("users path must be absolute path");
+		return
+	}
 
 	var rootUUIDString string
 
