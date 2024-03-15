@@ -1,122 +1,142 @@
 package main
 
 import (
-	"encoding/json"
+	"archiiv/fs"
+	"archiiv/user"
 	"flag"
-	"io"
+	"fmt"
+	"log/slog"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-type Archiiv struct {
-	fs    Fs
-	files map[uuid.UUID]*File
-	gin   *gin.Engine
+func main() {
+	log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+	srv, conf, err := createServer(log, os.Args[1:], os.Getenv)
+	if err != nil {
+		fmt.Printf("error from create: %s\n", err)
+		os.Exit(1)
+	}
+
+	err = run(log, srv, conf)
+	if err != nil {
+		fmt.Printf("error from run: %s\n", err)
+		os.Exit(1)
+	}
 }
 
-func cmdInit() error {
-	os.Mkdir("fs", os.ModePerm)
-	u := uuid.New()
-
-	w, err := os.Create("fs/root")
+func createServer(log *slog.Logger, args []string, env func(string) string) (http.Handler, config, error) {
+	conf, err := getConfig(args, env)
 	if err != nil {
-		return err
+		return nil, config{}, fmt.Errorf("get config: %w", err)
 	}
 
-	w.WriteString(u.String())
-	w.Close()
-
-	w, err = os.Create(filepath.Join("fs", u.String()))
+	users, err := user.LoadUsers(conf.usersPath)
 	if err != nil {
-		return err
+		return nil, config{}, fmt.Errorf("load users: %w", err)
 	}
 
-	d, err := json.Marshal(Record{
-		Name:     "",
-		Children: []uuid.UUID{},
-	})
+	files, err := fs.NewFs(conf.rootUUID, conf.fsRoot)
 	if err != nil {
-		return err
+		return nil, config{}, fmt.Errorf("new fs: %w", err)
 	}
 
-	w.Write(d)
-	w.Close()
+	mux := http.NewServeMux()
+	addRoutes(
+		mux,
+		log,
+		conf.secret,
+		users,
+		files,
+	)
+	var srv http.Handler = mux
+	srv = logAccesses(log, srv)
 
-	w, err = os.Create(filepath.Join("fs", u.String()+".meta"))
+	return srv, conf, nil
+}
+
+type config struct {
+	host      string
+	port      string
+	secret    string
+	usersPath string
+	fsRoot    string
+	rootUUID  uuid.UUID
+}
+
+func getConfig(args []string, env func(string) string) (conf config, err error) {
+	flags := flag.NewFlagSet("archiiv", flag.ContinueOnError)
+
+	flags.StringVar(&conf.host, "host", "localhost", "")
+	flags.StringVar(&conf.port, "port", "8275", "")
+	flags.StringVar(&conf.fsRoot, "fs_root", "", "")
+	flags.StringVar(&conf.usersPath, "users_path", "", "")
+	var rootUUIDString string
+	flags.StringVar(&rootUUIDString, "root_uuid", "", "")
+
+	err = flags.Parse(args)
 	if err != nil {
-		return err
+		err = fmt.Errorf("flags parse: %w", err)
+		return
 	}
 
-	d, err = json.Marshal(File{
-		UUID:      u,
-		Type:      "archiiv/directory",
-		Perms:     map[string]uint8{},
-		Hooks:     []string{},
-		CreatedBy: "root",
-		CreatedAt: uint64(time.Now().Unix()),
-	})
-	if err != nil {
-		return err
+	if !filepath.IsAbs(conf.fsRoot) {
+		err = fmt.Errorf("fs root must be absolute path (is %#v)", conf.fsRoot)
+		return
 	}
 
-	w.Write(d)
-	w.Close()
+	if !filepath.IsAbs(conf.usersPath) {
+		err = fmt.Errorf("users path must be absolute path (is %#v)", conf.usersPath)
+		return
+	}
+
+	conf.secret = env("ARCHIIV_SECRET")
+
+	conf.rootUUID, err = uuid.Parse(rootUUIDString)
+	if err != nil {
+		err = fmt.Errorf("uuid parse: %w", err)
+		return
+	}
+
+	return
+}
+
+func greet(log *slog.Logger) {
+	hour := time.Now().Hour()
+	switch {
+	case hour < 12:
+		log.Info("Good morning")
+	case hour < 17:
+		log.Info("Good afternoon")
+	default:
+		log.Info("Good evening")
+	}
+}
+
+func goodbye(log *slog.Logger) {
+	log.Info("Goodbye")
+}
+
+func run(log *slog.Logger, srv http.Handler, conf config) error {
+	greet(log)
+	defer goodbye(log)
+
+	httpServer := &http.Server{
+		Addr:    net.JoinHostPort(conf.host, conf.port),
+		Handler: srv,
+	}
+
+	log.Info("listening", "address", httpServer.Addr)
+	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Error("listening and serving", "error", err)
+		return err
+	}
 
 	return nil
-}
-
-func main() {
-	if len(os.Args) > 1 && os.Args[1][0] != '-' {
-		switch os.Args[1] {
-		case "init":
-			err := cmdInit()
-			if err != nil {
-				panic(err)
-			}
-		case "cli":
-		}
-	}
-
-	dir := flag.String("dir", "/var/lib/archiiv", "Specify the Archív directory")
-	flag.Parse()
-
-	av := Archiiv{}
-
-	rootFile, err := os.Open(filepath.Join(*dir, "fs", "root"))
-	if err != nil {
-		panic(err)
-	}
-
-	rootData, err := io.ReadAll(rootFile)
-	if err != nil {
-		panic(err)
-	}
-
-	rootUUID, err := uuid.ParseBytes(rootData)
-	if err != nil {
-		panic(err)
-	}
-
-	fs, err := NewFs(rootUUID, filepath.Join(*dir, "fs"))
-	if err != nil {
-		panic(err)
-	}
-
-	av.fs = fs
-	err = av.loadFiles()
-	if err != nil {
-		panic(err)
-	}
-
-	av.gin = gin.Default()
-	av.fsEndpoints()
-
-	err = av.gin.Run()
-	if err != nil {
-		panic(err)
-	}
 }
