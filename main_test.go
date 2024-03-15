@@ -1,59 +1,94 @@
 package main
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 )
 
-func TestEmptyServer(t *testing.T) {
+type responseError struct {
+	Ok    bool   `json:"ok"`
+	Error string `json:"error"`
+}
+
+func decodeResponse[T any](t *testing.T, r *http.Response) (v T) {
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	err := dec.Decode(&v)
+
+	if err != nil {
+		t.Errorf("failed to decode response %v", err)
+	} else if _, err := dec.Token(); err != io.EOF { // check that there is nothing leaking after the json
+		t.Error("json contains trailing data")
+	}
+
+	return
+}
+
+func expectEqual[T comparable](t *testing.T, got, expected T, comment string) {
+	if expected != got {
+		t.Errorf("%s should be %#v (is %#v)", comment, expected, got)
+	}
+}
+
+func expectStatusCode(t *testing.T, res *http.Response, expected int) {
+	expectEqual(t, res.StatusCode, expected, "status code")
+}
+
+func expectBody(t *testing.T, res *http.Response, expected string) {
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Errorf("failed to read response body: %v", err)
+	}
+	expectEqual(t, string(b), expected, "response body")
+}
+
+func expectFail(t *testing.T, res *http.Response, statusCode int, errorMessage string) {
+	expectStatusCode(t, res, statusCode)
+	b := decodeResponse[responseError](t, res)
+	expectEqual(t, b.Ok, false, "ok field")
+	expectEqual(t, b.Error, errorMessage, "response body")
+}
+
+func hit(srv http.Handler, method, target string, body io.Reader) *http.Response {
+	req := httptest.NewRequest(method, target, body)
+	w := httptest.NewRecorder()
+	srv.ServeHTTP(w, req)
+	return w.Result()
+}
+
+func hitGet(srv http.Handler, target string) *http.Response {
+	req := httptest.NewRequest(http.MethodGet, target, strings.NewReader(""))
+	w := httptest.NewRecorder()
+	srv.ServeHTTP(w, req)
+	return w.Result()
+}
+
+func TestWhoamiNeedsLogin(t *testing.T) {
 	t.Parallel()
+	srv := newTestServer(t)
 
-	type test struct {
-		name     string
-		method   string
-		path     string
-		body     string
-		wantCode int
-	}
+	res := hitGet(srv, "/api/v1/whoami")
+	expectFail(t, res, http.StatusUnauthorized, "Unauthorized")
+}
 
-	tests := []test{
-		{name: "root returns not found",
-			method: http.MethodGet, path: "/", body: "", wantCode: http.StatusNotFound},
-		{name: "fs upload complains about invalid uuids",
-			method: http.MethodPost, path: "/api/v1/fs/upload/1/2", body: "", wantCode: http.StatusBadRequest},
-	}
+func TestRootReturnsNotFound(t *testing.T) {
+	t.Parallel()
+	srv := newTestServer(t)
 
-	for _, tc := range tests {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			srv, dir, err := newTestServer()
-			if err != nil {
-				t.Errorf("new test server: %v", err)
-				return
-			}
-			defer os.RemoveAll(dir)
+	res := hitGet(srv, "/")
+	expectStatusCode(t, res, http.StatusNotFound)
+	expectBody(t, res, "404 page not found\n")
+}
 
-			req := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))
-			w := httptest.NewRecorder()
+func TestFsUploadUUIDParse(t *testing.T) {
+	t.Parallel()
+	srv := newTestServer(t)
 
-			srv.ServeHTTP(w, req)
-
-			res := w.Result()
-			defer res.Body.Close()
-			_, err = io.ReadAll(res.Body)
-			if err != nil {
-				t.Errorf("read all: %v", err)
-				return
-			}
-
-			if res.StatusCode != tc.wantCode {
-				t.Errorf("expected status code %v. got %v", tc.wantCode, res.StatusCode)
-			}
-		})
-	}
+	// TODO login here
+	res := hit(srv, http.MethodPost, "/api/v1/fs/upload/1/2", strings.NewReader(""))
+	expectFail(t, res, http.StatusBadRequest, "invalid uuid")
 }

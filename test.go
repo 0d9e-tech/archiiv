@@ -2,21 +2,17 @@ package main
 
 import (
 	"archiiv/fs"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"path/filepath"
+	"testing"
 )
 
-func newTestServer() (http.Handler, string, error) {
+func newTestServer(t *testing.T) http.Handler {
 	log := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
-	dir, rootUUID, err := fs.InitFsDir()
-
-	if err != nil {
-		return nil, "", fmt.Errorf("init fs dir: %w", err)
-	}
+	dir, rootUUID := fs.InitFsDir(t)
 
 	srv, _, err := createServer(log, []string{
 		"--fs_root", filepath.Join(dir, "fs"),
@@ -30,8 +26,8 @@ func newTestServer() (http.Handler, string, error) {
 	})
 
 	if err != nil {
-		return nil, "", fmt.Errorf("create server: %w", err)
+		t.Fatalf("newTestServer: %v", err)
 	}
 
-	return srv, dir, nil
+	return srv
 }

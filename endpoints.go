@@ -114,14 +114,15 @@ func handleCat(fs *fs.Fs) http.Handler {
 	})
 }
 
-func handleUpload(fs *fs.Fs) http.Handler {
+func handleUpload(log *slog.Logger, fs *fs.Fs) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		uuidArg := r.PathValue("uuid")
 		sectionArg := r.PathValue("section")
 
 		uuid, e := uuid.Parse(uuidArg)
 		if e != nil {
-			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
+			log.Error("handleUpload", "error", e)
+			encodeError(w, http.StatusBadRequest, errors.New("invalid uuid"))
 			return
 		}
 
