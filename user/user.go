@@ -12,7 +12,7 @@ import (
 
 type UserStore struct {
 	// username to hashed password
-	users map[string]string
+	users map[string][64]byte
 	// path of the users file
 	path string
 }
@@ -47,11 +47,11 @@ func LoadUsers(path string) (us UserStore, err error) {
 	return
 }
 
-func (us UserStore) CheckPassword(name, pwd string) bool {
+func (us UserStore) CheckPassword(name string, pwd [64]byte) bool {
 	return us.users[name] == pwd
 }
 
-func (us UserStore) CreateUser(name, pwd string) error {
+func (us UserStore) CreateUser(name string, pwd [64]byte) error {
 	if _, ok := us.users[name]; ok {
 		return errors.New("username already used")
 	} else {

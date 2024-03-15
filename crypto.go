@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/sha512"
 	"encoding/base64"
 	"encoding/gob"
 	"errors"
@@ -30,6 +31,10 @@ func GenerateSecret() string {
 	}
 	seed := priv.Seed()
 	return base64.StdEncoding.EncodeToString(seed)
+}
+
+func HashPassword(pwd string) [64]byte {
+	return sha512.Sum512([]byte(pwd))
 }
 
 func secretToKeys(secretStr string) (priv ed25519.PrivateKey, err error) {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -60,6 +61,17 @@ func hit(srv http.Handler, method, target string, body io.Reader) *http.Response
 	return w.Result()
 }
 
+func hitPost(t *testing.T, srv http.Handler, target string, body any) *http.Response {
+	var buf bytes.Buffer
+
+	err := json.NewEncoder(&buf).Encode(body)
+	if err != nil {
+		t.Errorf("failed to encode post body: %v", err)
+	}
+
+	return hit(srv, http.MethodPost, "/api/v1/login", &buf)
+}
+
 func hitGet(srv http.Handler, target string) *http.Response {
 	req := httptest.NewRequest(http.MethodGet, target, strings.NewReader(""))
 	w := httptest.NewRecorder()
@@ -82,6 +94,28 @@ func TestRootReturnsNotFound(t *testing.T) {
 	res := hitGet(srv, "/")
 	expectStatusCode(t, res, http.StatusNotFound)
 	expectBody(t, res, "404 page not found\n")
+}
+
+func TestLogin(t *testing.T) {
+	t.Parallel()
+	srv := newTestServerWithUsers(t, map[string][64]byte{
+		"prokop": HashPassword("catboy123"),
+	})
+
+	type LoginRequest struct {
+		Username string   `json:"username"`
+		Password [64]byte `json:"password"`
+	}
+
+	expectFail(t, hitPost(t, srv, "/api/v1/login", LoginRequest{Username: "prokop", Password: HashPassword("eek")}),
+		http.StatusForbidden, "wrong name or password")
+	expectFail(t, hitPost(t, srv, "/api/v1/login", LoginRequest{Username: "prokop", Password: HashPassword("uuhk")}),
+		http.StatusForbidden, "wrong name or password")
+	expectFail(t, hitPost(t, srv, "/api/v1/login", LoginRequest{Username: "marek", Password: HashPassword("catboy123")}),
+		http.StatusForbidden, "wrong name or password")
+	res := hitPost(t, srv, "/api/v1/login", LoginRequest{Username: "prokop", Password: HashPassword("catboy123")})
+	expectStatusCode(t, res, http.StatusOK)
+	expectBody(t, res, "{\"ok\":true,\"data\":{\"token\":\"Ff+DAwEBCUZ1bGxUb2tlbgH/hAAAAA==\"}}\n")
 }
 
 func TestFsUploadUUIDParse(t *testing.T) {

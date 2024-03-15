@@ -17,7 +17,7 @@ import (
 // │   ├── ...
 // │   └── 38b4183d-4df4-43dd-9495-1847083a3662
 // └── users.json
-func InitFsDir(t *testing.T) (dir string, rootUUID uuid.UUID) {
+func InitFsDir(t *testing.T, users map[string][64]byte) (dir string, rootUUID uuid.UUID) {
 	dir = t.TempDir()
 
 	fsDir := filepath.Join(dir, "fs")
@@ -49,7 +49,7 @@ func InitFsDir(t *testing.T) (dir string, rootUUID uuid.UUID) {
 	}
 	defer f2.Close()
 
-	err = json.NewEncoder(f2).Encode(map[string]string{})
+	err = json.NewEncoder(f2).Encode(users)
 	if err != nil {
 		t.Fatalf("InitFsDir: %v", err)
 	}

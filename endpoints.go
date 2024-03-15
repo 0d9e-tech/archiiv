@@ -33,7 +33,7 @@ func requireLogin(secret string, h http.Handler) http.Handler {
 func handleLogin(secret string, log *slog.Logger, userStore user.UserStore) http.Handler {
 	type LoginRequest struct {
 		Username string `json:"username"`
-		Password string `json:"password"`
+		Password [64]byte `json:"password"`
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		lr, err := decode[LoginRequest](r)
@@ -45,7 +45,9 @@ func handleLogin(secret string, log *slog.Logger, userStore user.UserStore) http
 
 		if ok {
 			log.Info("New login", "user", lr.Username)
-			encodeOK(w, map[string]any{"token": token})
+			encodeOK(w, struct {
+				Token string `json:"token"`
+			}{Token: token})
 			return
 		} else {
 			log.Info("Failed login", "user", lr.Username)

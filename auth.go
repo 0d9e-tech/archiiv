@@ -30,7 +30,7 @@ func validateToken(secret, token string) bool {
 	return true
 }
 
-func login(name, pwd, secret string, userStore user.UserStore) (ok bool, token string) {
+func login(name string, pwd [64]byte, secret string, userStore user.UserStore) (ok bool, token string) {
 	if !userStore.CheckPassword(name, pwd) {
 		ok = false
 		return
