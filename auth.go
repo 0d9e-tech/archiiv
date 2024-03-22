@@ -24,10 +24,7 @@ func getUsername(r *http.Request, secret string) string {
 
 func validateToken(secret, token string) bool {
 	_, err := VerifySignature(token, secret, 7*24*time.Hour)
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 func login(name string, pwd [64]byte, secret string, userStore user.UserStore) (ok bool, token string) {
