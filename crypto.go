@@ -21,8 +21,8 @@ type TokenPayload struct {
 }
 
 type FullToken struct {
-	data TokenPayload
-	sign []byte
+	Data TokenPayload
+	Sign []byte
 }
 
 func GenerateSecret() string {
@@ -54,11 +54,13 @@ func payloadToBytes(p TokenPayload) []byte {
 	return buf.Bytes()
 }
 
-func gobEncode(v any) []byte {
+func gobEncode(v any) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
-	enc.Encode(v)
-	return buf.Bytes()
+	if err := enc.Encode(v); err != nil {
+		return nil, fmt.Errorf("gob decode: %v", err)
+	}
+	return buf.Bytes(), nil
 }
 
 func gobDecode[T any](d []byte) (T, error) {
@@ -98,10 +100,13 @@ func Sign(username, secret string) (string, error) {
 		return "", err
 	}
 
-	fullTokenBytes := gobEncode(FullToken{
-		data: payload,
-		sign: signature,
+	fullTokenBytes, err := gobEncode(FullToken{
+		Data: payload,
+		Sign: signature,
 	})
+	if err != nil {
+		return "", err
+	}
 
 	return base64.URLEncoding.EncodeToString(fullTokenBytes), nil
 }
@@ -122,15 +127,15 @@ func VerifySignature(dataStr, secret string, maxAge time.Duration) (string, erro
 		return "", fmt.Errorf("derive key from secret: %v", err)
 	}
 
-	payloadBytes := payloadToBytes(ft.data)
+	payloadBytes := payloadToBytes(ft.Data)
 
-	if !ed25519.Verify(priv.Public().(ed25519.PublicKey), payloadBytes, ft.sign) {
+	if !ed25519.Verify(priv.Public().(ed25519.PublicKey), payloadBytes, ft.Sign) {
 		return "", errors.New("signature is invalid")
 	}
 
-	if time.Since(ft.data.Timestamp).Microseconds() > maxAge.Microseconds() {
+	if time.Since(ft.Data.Timestamp).Microseconds() > maxAge.Microseconds() {
 		return "", errors.New("signature is too old")
 	}
 
-	return ft.data.Username, nil
+	return ft.Data.Username, nil
 }
