@@ -112,8 +112,13 @@ func TestLogin(t *testing.T) {
 	expectFail(t, hitPost(t, srv, "/api/v1/login", LoginRequest{Username: "marek", Password: HashPassword("catboy123")}), http.StatusForbidden, "wrong name or password")
 	res := hitPost(t, srv, "/api/v1/login", LoginRequest{Username: "prokop", Password: HashPassword("catboy123")})
 	expectStatusCode(t, res, http.StatusOK)
-	// FIXME check that ok is true and that there is a token but not what token
-	expectBody(t, res, "{\"ok\":true,\"data\":{\"token\":\"Kv-DAwEBCUZ1bGxUb2tlbgH_hAABAgEERGF0YQH_gAABBFNpZ24BCgAAAD9_AwEBDFRva2VuUGF5bG9hZAH_gAABAwEIVXNlcm5hbWUBDAABCVRpbWVzdGFtcAH_ggABBU5vbmNlAQQAAAAQ_4EFAQEEVGltZQH_ggAAAGr_hAEBBnByb2tvcAEPAQAAAA7dj0O2MGMlnQA8AfgjH9FHtrN6pgABQEqtN2qG2nysISitEySEoNgyqqQvE2HkN7nFzZ8f88q5xKkvFSkrufHesbopZeU14sEZK1Aa1QaWmlw7wmhdWAQA\"}}\n")
+	response := decodeResponse[struct {
+		Ok   bool `json:"ok"`
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}](t, res)
+	expectEqual(t, response.Ok, true, "ok of response")
 }
 
 func loginHelper(t *testing.T, srv http.Handler, username, pwd string) string {
