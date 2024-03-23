@@ -14,18 +14,18 @@ import (
 	"time"
 )
 
-type TokenPayload struct {
+type tokenPayload struct {
 	Username  string
 	Timestamp time.Time
 	Nonce     int64
 }
 
-type FullToken struct {
-	Data TokenPayload
+type fullToken struct {
+	Data tokenPayload
 	Sign []byte
 }
 
-func GenerateSecret() string {
+func generateSecret() string {
 	_, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		panic(err)
@@ -34,7 +34,7 @@ func GenerateSecret() string {
 	return base64.URLEncoding.EncodeToString(seed)
 }
 
-func HashPassword(pwd string) [64]byte {
+func hashPassword(pwd string) [64]byte {
 	return sha512.Sum512([]byte(pwd))
 }
 
@@ -47,7 +47,7 @@ func secretToKeys(secretStr string) (priv ed25519.PrivateKey, err error) {
 	return
 }
 
-func payloadToBytes(p TokenPayload) ([]byte, error) {
+func payloadToBytes(p tokenPayload) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
 	if err := enc.Encode(p); err != nil {
@@ -74,7 +74,7 @@ func gobDecode[T any](d []byte) (T, error) {
 	return v, nil
 }
 
-func Sign(username, secret string) (string, error) {
+func sign(username, secret string) (string, error) {
 	// we construct the payload, serialize the payload into []byte, sign
 	// the []byte, construct (payload, signature), serialize (payload,
 	// signature) into string and return it
@@ -84,7 +84,7 @@ func Sign(username, secret string) (string, error) {
 		panic(err)
 	}
 
-	payload := TokenPayload{
+	payload := tokenPayload{
 		Username:  username,
 		Timestamp: time.Now(),
 		Nonce:     nonce.Int64(),
@@ -105,10 +105,7 @@ func Sign(username, secret string) (string, error) {
 		return "", err
 	}
 
-	fullTokenBytes, err := gobEncode(FullToken{
-		Data: payload,
-		Sign: signature,
-	})
+	fullTokenBytes, err := gobEncode(fullToken{Data: payload, Sign: signature})
 	if err != nil {
 		return "", err
 	}
@@ -116,13 +113,13 @@ func Sign(username, secret string) (string, error) {
 	return base64.URLEncoding.EncodeToString(fullTokenBytes), nil
 }
 
-func VerifySignature(dataStr, secret string, maxAge time.Duration) (string, error) {
+func verifySignature(dataStr, secret string, maxAge time.Duration) (string, error) {
 	data, err := base64.URLEncoding.DecodeString(dataStr)
 	if err != nil {
 		return "", fmt.Errorf("base64 decode token: %v", err)
 	}
 
-	ft, err := gobDecode[FullToken](data)
+	ft, err := gobDecode[fullToken](data)
 	if err != nil {
 		return "", fmt.Errorf("decode FullToken: %v", err)
 	}

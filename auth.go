@@ -15,7 +15,7 @@ func getUsername(r *http.Request, secret string) string {
 	// `requireLogin` middleware so this function can assume that some user
 	// is logged in
 	token := getSessionToken(r)
-	username, err := VerifySignature(token, secret, 7*24*time.Hour)
+	username, err := verifySignature(token, secret, 7*24*time.Hour)
 	if err != nil {
 		panic(err)
 	}
@@ -23,7 +23,7 @@ func getUsername(r *http.Request, secret string) string {
 }
 
 func validateToken(secret, token string) bool {
-	_, err := VerifySignature(token, secret, 7*24*time.Hour)
+	_, err := verifySignature(token, secret, 7*24*time.Hour)
 	return err == nil
 }
 
@@ -33,7 +33,7 @@ func login(name string, pwd [64]byte, secret string, userStore user.UserStore) (
 		return
 	}
 
-	token, err := Sign(name, secret)
+	token, err := sign(name, secret)
 	if err != nil {
 		ok = false
 		return

@@ -6,14 +6,13 @@ import (
 	"net/http"
 )
 
+type responseError struct {
+	Ok    bool   `json:"ok"`
+	Error string `json:"error"`
+}
+
 func encodeError(w http.ResponseWriter, status int, e error) error {
-	return encode(w, status, struct {
-		Ok    bool   `json:"ok"`
-		Error string `json:"error"`
-	}{
-		Ok:    false,
-		Error: e.Error(),
-	})
+	return encode(w, status, responseError{Ok: false, Error: e.Error()})
 }
 
 func encodeOK[T any](w http.ResponseWriter, v T) error {

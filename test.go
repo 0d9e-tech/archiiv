@@ -3,6 +3,7 @@ package main
 import (
 	"archiiv/fs"
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -22,7 +23,7 @@ func newTestServerWithUsers(t *testing.T, users map[string][64]byte) http.Handle
 
 	dir, rootUUID := fs.InitFsDir(t, users)
 
-	secret := GenerateSecret()
+	secret := generateSecret()
 
 	srv, _, err := createServer(log, []string{
 		"--fs_root", filepath.Join(dir, "fs"),
@@ -40,11 +41,6 @@ func newTestServerWithUsers(t *testing.T, users map[string][64]byte) http.Handle
 	}
 
 	return srv
-}
-
-type responseError struct {
-	Ok    bool   `json:"ok"`
-	Error string `json:"error"`
 }
 
 func decodeResponse[T any](t *testing.T, r *http.Response) (v T) {
@@ -86,6 +82,23 @@ func expectFail(t *testing.T, res *http.Response, statusCode int, errorMessage s
 	expectEqual(t, b.Error, errorMessage, "response body")
 }
 
+func expectStringLooksLikeToken(t *testing.T, token string) {
+	data, err := base64.URLEncoding.DecodeString(token)
+	if err != nil {
+		t.Errorf("string does not look like token: base64 decode: %v", err)
+	}
+
+	ft, err := gobDecode[fullToken](data)
+	if err != nil {
+		t.Errorf("string does not look like token: gob decode %v", err)
+	}
+
+	_, err = payloadToBytes(ft.Data)
+	if err != nil {
+		t.Errorf("string does not look like token: payload to bytes: %v", err)
+	}
+}
+
 func hit(srv http.Handler, method, target string, body io.Reader) *http.Response {
 	req := httptest.NewRequest(method, target, body)
 	w := httptest.NewRecorder()
@@ -109,4 +122,24 @@ func hitGet(srv http.Handler, target string) *http.Response {
 	w := httptest.NewRecorder()
 	srv.ServeHTTP(w, req)
 	return w.Result()
+}
+
+type loginRequest struct {
+	Username string   `json:"username"`
+	Password [64]byte `json:"password"`
+}
+
+func loginHelper(t *testing.T, srv http.Handler, username, pwd string) string {
+	res := hitPost(t, srv, "/api/v1/login", loginRequest{Username: username, Password: hashPassword(pwd)})
+
+	type LoginResponse struct {
+		Ok   bool `json:"ok"`
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+
+	lr := decodeResponse[LoginResponse](t, res)
+
+	return lr.Data.Token
 }
