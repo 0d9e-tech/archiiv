@@ -11,8 +11,8 @@ type responseError struct {
 	Error string `json:"error"`
 }
 
-func encodeError(w http.ResponseWriter, status int, e error) error {
-	return encode(w, status, responseError{Ok: false, Error: e.Error()})
+func encodeError(w http.ResponseWriter, status int, e string) error {
+	return encode(w, status, responseError{Ok: false, Error: e})
 }
 
 func encodeOK[T any](w http.ResponseWriter, v T) error {

@@ -16,15 +16,15 @@ func addRoutes(
 ) {
 	mux.Handle("POST /api/v1/login", handleLogin(secret, log, userStore))
 	//mux.Handle("POST /api/v1/refresh-token", handleSessionTokenRefresh(secret, log, userStore))
-	mux.Handle("GET /api/v1/whoami", requireLogin(secret, handleWhoami(secret)))
+	mux.Handle("GET /api/v1/whoami", requireLogin(secret, log, handleWhoami(secret)))
 
-	mux.Handle("GET /api/v1/fs/ls/{uuid}", requireLogin(secret, handleLs(fileStore)))
-	mux.Handle("GET /api/v1/fs/cat/{uuid}/{section}", requireLogin(secret, handleCat(fileStore)))
-	mux.Handle("POST /api/v1/fs/upload/{uuid}/{section}", requireLogin(secret, handleUpload(log, fileStore)))
-	mux.Handle("POST /api/v1/fs/touch/{uuid}/{name}", requireLogin(secret, handleTouch(fileStore)))
-	mux.Handle("POST /api/v1/fs/mkdir/{uuid}/{name}", requireLogin(secret, handleMkdir(fileStore)))
-	mux.Handle("POST /api/v1/fs/mount/{parentUUID}/{childUUID}", requireLogin(secret, handleMount(fileStore)))
-	mux.Handle("POST /api/v1/fs/unmount/{parentUUID}/{childUUID}", requireLogin(secret, handleUnmount(fileStore)))
+	mux.Handle("GET /api/v1/fs/ls/{uuid}", requireLogin(secret, log, handleLs(fileStore, log)))
+	mux.Handle("GET /api/v1/fs/cat/{uuid}/{section}", requireLogin(secret, log, handleCat(fileStore, log)))
+	mux.Handle("POST /api/v1/fs/upload/{uuid}/{section}", requireLogin(secret, log, handleUpload(log, fileStore)))
+	mux.Handle("POST /api/v1/fs/touch/{uuid}/{name}", requireLogin(secret, log, handleTouch(fileStore, log)))
+	mux.Handle("POST /api/v1/fs/mkdir/{uuid}/{name}", requireLogin(secret, log, handleMkdir(fileStore, log)))
+	mux.Handle("POST /api/v1/fs/mount/{parentUUID}/{childUUID}", requireLogin(secret, log, handleMount(fileStore, log)))
+	mux.Handle("POST /api/v1/fs/unmount/{parentUUID}/{childUUID}", requireLogin(secret, log, handleUnmount(fileStore, log)))
 
 	mux.Handle("/", http.NotFoundHandler())
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"archiiv/fs"
 	"archiiv/user"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -12,6 +11,21 @@ import (
 	"github.com/google/uuid"
 )
 
+// Tries to send a error response but if that also fails just logs the error
+func sendError(log *slog.Logger, w http.ResponseWriter, errorCode int, errorText string) {
+	err := encodeError(w, errorCode, errorText)
+	if err != nil {
+		log.Error("failed to send error response", "error", err)
+	}
+}
+
+func sendOK(log *slog.Logger, w http.ResponseWriter, v any) {
+	err := encodeOK(w, v)
+	if err != nil {
+		log.Error("failed to send ok reponse", "error", err)
+	}
+}
+
 func logAccesses(log *slog.Logger, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Info("request", "url", r.URL.Path)
@@ -19,13 +33,13 @@ func logAccesses(log *slog.Logger, h http.Handler) http.Handler {
 	})
 }
 
-func requireLogin(secret string, h http.Handler) http.Handler {
+func requireLogin(secret string, log *slog.Logger, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := getSessionToken(r)
 		if validateToken(secret, token) {
 			h.ServeHTTP(w, r)
 		} else {
-			encodeError(w, http.StatusUnauthorized, errors.New("401 unauthorized"))
+			sendError(log, w, http.StatusUnauthorized, "401 unauthorized")
 		}
 	})
 }
@@ -38,64 +52,65 @@ func handleLogin(secret string, log *slog.Logger, userStore user.UserStore) http
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		lr, err := decode[LoginRequest](r)
 		if err != nil {
-			encodeError(w, http.StatusBadRequest, errors.New("wrong name or password"))
+			sendError(log, w, http.StatusBadRequest, "wrong name or password")
+			return
 		}
 
 		ok, token := login(lr.Username, lr.Password, secret, userStore)
 
 		if ok {
 			log.Info("New login", "user", lr.Username)
-			encodeOK(w, struct {
+			sendOK(log, w, struct {
 				Token string `json:"token"`
 			}{Token: token})
 			return
 		} else {
 			log.Info("Failed login", "user", lr.Username)
-			encodeError(w, http.StatusForbidden, errors.New("wrong name or password"))
+			sendError(log, w, http.StatusForbidden, "wrong name or password")
 			return
 		}
 	})
 }
 
-func handleWhoami(secret string) http.Handler {
+func handleWhoami(secret string, log *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		name := getUsername(r, secret)
-		encodeOK(w, struct {
+		sendOK(log, w, struct {
 			Name string `json:"name"`
 		}{Name: name})
 	})
 }
 
-func handleLs(fs *fs.Fs) http.Handler {
+func handleLs(fs *fs.Fs, log *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		uuidArg := r.PathValue("uuid")
 
 		id, e := uuid.Parse(uuidArg)
 		if e != nil {
-			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
+			sendError(log, w, http.StatusBadRequest, fmt.Sprintf("parse uuid: %v", e))
 			return
 		}
 
 		ch, e := fs.GetChildren(id)
 		if e != nil {
-			encodeError(w, http.StatusNotFound, fmt.Errorf("file not found: %w", e))
+			sendError(log, w, http.StatusNotFound, fmt.Sprintf("file not found: %v", e))
 			return
 		}
 
 		// TODO(matěj) check permission
 
-		encodeOK(w, ch)
+		sendOK(log, w, ch)
 	})
 }
 
-func handleCat(fs *fs.Fs) http.Handler {
+func handleCat(fs *fs.Fs, log *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		uuidArg := r.PathValue("uuid")
 		sectionArg := r.PathValue("section")
 
 		id, e := uuid.Parse(uuidArg)
 		if e != nil {
-			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
+			sendError(log, w, http.StatusBadRequest, fmt.Sprintf("parse uuid: %v", e))
 			return
 		}
 
@@ -103,16 +118,16 @@ func handleCat(fs *fs.Fs) http.Handler {
 
 		sectionReader, e := fs.OpenSection(id, sectionArg)
 		if e != nil {
-			encodeError(w, http.StatusInternalServerError, fmt.Errorf("open section: %w", e))
+			sendError(log, w, http.StatusInternalServerError, fmt.Sprintf("open section: %v", e))
 			return
 		}
 
 		if _, e = io.Copy(w, sectionReader); e != nil {
-			encodeError(w, http.StatusInternalServerError, fmt.Errorf("io copy: %w", e))
+			sendError(log, w, http.StatusInternalServerError, fmt.Sprintf("io copy: %v", e))
 			return
 		}
 
-		encodeOK[interface{}](w, nil)
+		sendOK(log, w, nil)
 	})
 }
 
@@ -124,7 +139,7 @@ func handleUpload(log *slog.Logger, fs *fs.Fs) http.Handler {
 		uuid, e := uuid.Parse(uuidArg)
 		if e != nil {
 			log.Error("handleUpload", "error", e)
-			encodeError(w, http.StatusBadRequest, errors.New("invalid uuid"))
+			sendError(log, w, http.StatusBadRequest, fmt.Sprintf("invalid uuid"))
 			return
 		}
 
@@ -132,20 +147,20 @@ func handleUpload(log *slog.Logger, fs *fs.Fs) http.Handler {
 
 		sectionWriter, e := fs.CreateSection(uuid, sectionArg)
 		if e != nil {
-			encodeError(w, http.StatusInternalServerError, fmt.Errorf("create section: %w", e))
+			sendError(log, w, http.StatusInternalServerError, fmt.Sprintf("create section: %v", e))
 			return
 		}
 
 		if _, e = io.Copy(sectionWriter, r.Body); e != nil {
-			encodeError(w, http.StatusInternalServerError, fmt.Errorf("io copy: %w", e))
+			sendError(log, w, http.StatusInternalServerError, fmt.Sprintf("io copy: %v", e))
 			return
 		}
 
-		encodeOK[interface{}](w, nil)
+		sendOK(log, w, nil)
 	})
 }
 
-func handleTouch(fs *fs.Fs) http.Handler {
+func handleTouch(fs *fs.Fs, log *slog.Logger) http.Handler {
 	type OkResponse struct {
 		NewFileUUID uuid.UUID `json:"new_file_uuid"`
 	}
@@ -156,7 +171,7 @@ func handleTouch(fs *fs.Fs) http.Handler {
 
 		parentID, e := uuid.Parse(uuidArg)
 		if e != nil {
-			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
+			sendError(log, w, http.StatusBadRequest, fmt.Sprintf("parse uuid: %v", e))
 			return
 		}
 
@@ -164,15 +179,15 @@ func handleTouch(fs *fs.Fs) http.Handler {
 
 		fileID, e := fs.Touch(parentID, name)
 		if e != nil {
-			encodeError(w, http.StatusInternalServerError, fmt.Errorf("touch: %w", e))
+			sendError(log, w, http.StatusInternalServerError, fmt.Sprintf("touch: %v", e))
 			return
 		}
 
-		encodeOK(w, OkResponse{NewFileUUID: fileID})
+		sendOK(log, w, OkResponse{NewFileUUID: fileID})
 	})
 }
 
-func handleMkdir(fs *fs.Fs) http.Handler {
+func handleMkdir(fs *fs.Fs, log *slog.Logger) http.Handler {
 	type OkResponse struct {
 		NewDirUUID uuid.UUID `json:"new_dir_uuid"`
 	}
@@ -183,7 +198,7 @@ func handleMkdir(fs *fs.Fs) http.Handler {
 
 		id, e := uuid.Parse(uuidArg)
 		if e != nil {
-			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
+			sendError(log, w, http.StatusBadRequest, fmt.Sprintf("parse uuid: %v", e))
 			return
 		}
 
@@ -191,28 +206,28 @@ func handleMkdir(fs *fs.Fs) http.Handler {
 
 		fileID, e := fs.Mkdir(id, name)
 		if e != nil {
-			encodeError(w, http.StatusInternalServerError, fmt.Errorf("mkdir: %w", e))
+			sendError(log, w, http.StatusInternalServerError, fmt.Sprintf("mkdir: %v", e))
 			return
 		}
 
-		encodeOK(w, OkResponse{NewDirUUID: fileID})
+		sendOK(log, w, OkResponse{NewDirUUID: fileID})
 	})
 }
 
-func handleMount(fs *fs.Fs) http.Handler {
+func handleMount(fs *fs.Fs, log *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		parentArg := r.PathValue("parentUUID")
 		childArg := r.PathValue("childUUID")
 
 		parentUUID, e := uuid.Parse(parentArg)
 		if e != nil {
-			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
+			sendError(log, w, http.StatusBadRequest, fmt.Sprintf("parse uuid: %v", e))
 			return
 		}
 
 		childUUID, e := uuid.Parse(childArg)
 		if e != nil {
-			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
+			sendError(log, w, http.StatusBadRequest, fmt.Sprintf("parse uuid: %v", e))
 			return
 		}
 
@@ -220,28 +235,28 @@ func handleMount(fs *fs.Fs) http.Handler {
 
 		e = fs.Mount(parentUUID, childUUID)
 		if e != nil {
-			encodeError(w, http.StatusInternalServerError, fmt.Errorf("parse uuid: %w", e))
+			sendError(log, w, http.StatusInternalServerError, fmt.Sprintf("parse uuid: %v", e))
 			return
 		}
 
-		encodeOK[interface{}](w, nil)
+		sendOK(log, w, nil)
 	})
 }
 
-func handleUnmount(fs *fs.Fs) http.Handler {
+func handleUnmount(fs *fs.Fs, log *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		parentArg := r.PathValue("parentUUID")
 		childArg := r.PathValue("childUUID")
 
 		parentUUID, e := uuid.Parse(parentArg)
 		if e != nil {
-			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
+			sendError(log, w, http.StatusBadRequest, fmt.Sprintf("parse uuid: %v", e))
 			return
 		}
 
 		childUUID, e := uuid.Parse(childArg)
 		if e != nil {
-			encodeError(w, http.StatusBadRequest, fmt.Errorf("parse uuid: %w", e))
+			sendError(log, w, http.StatusBadRequest, fmt.Sprintf("parse uuid: %v", e))
 			return
 		}
 
@@ -249,10 +264,10 @@ func handleUnmount(fs *fs.Fs) http.Handler {
 
 		e = fs.Unmount(parentUUID, childUUID)
 		if e != nil {
-			encodeError(w, http.StatusInternalServerError, fmt.Errorf("parse uuid: %w", e))
+			sendError(log, w, http.StatusInternalServerError, fmt.Sprintf("parse uuid: %v", e))
 			return
 		}
 
-		encodeOK[interface{}](w, nil)
+		sendOK(log, w, nil)
 	})
 }
