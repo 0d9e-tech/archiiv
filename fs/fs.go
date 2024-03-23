@@ -398,7 +398,7 @@ func InitFsDir(dir string, users map[string][64]byte) (rootUUID uuid.UUID, err e
 	rootUUIDPath := filepath.Join(fsDir, rootUUID.String())
 	f, err := os.Create(rootUUIDPath) // #nosec G304: the dir argument is trusted
 	if err != nil {
-		err = fmt.Errorf("InitFsDir: %v", err)
+		err = fmt.Errorf("InitFsDir: %w", err)
 		return
 	}
 	defer f.Close()
@@ -407,7 +407,7 @@ func InitFsDir(dir string, users map[string][64]byte) (rootUUID uuid.UUID, err e
 		IsDir: true,
 	})
 	if err != nil {
-		err = fmt.Errorf("InitFsDir: %v", err)
+		err = fmt.Errorf("InitFsDir: %w", err)
 		return
 	}
 
@@ -415,14 +415,14 @@ func InitFsDir(dir string, users map[string][64]byte) (rootUUID uuid.UUID, err e
 	usersPath := filepath.Join(dir, "users.json")
 	f2, err := os.Create(usersPath) // #nosec G304: the dir argument is trusted
 	if err != nil {
-		err = fmt.Errorf("InitFsDir: %v", err)
+		err = fmt.Errorf("InitFsDir: %w", err)
 		return
 	}
 	defer f2.Close()
 
 	err = json.NewEncoder(f2).Encode(users)
 	if err != nil {
-		err = fmt.Errorf("InitFsDir: %v", err)
+		err = fmt.Errorf("InitFsDir: %w", err)
 		return
 	}
 

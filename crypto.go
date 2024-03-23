@@ -60,7 +60,7 @@ func gobEncode(v any) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
 	if err := enc.Encode(v); err != nil {
-		return nil, fmt.Errorf("gob decode: %v", err)
+		return nil, fmt.Errorf("gob decode: %w", err)
 	}
 	return buf.Bytes(), nil
 }
@@ -69,7 +69,7 @@ func gobDecode[T any](d []byte) (T, error) {
 	dec := gob.NewDecoder(bytes.NewReader(d))
 	var v T
 	if err := dec.Decode(&v); err != nil {
-		return v, fmt.Errorf("gob decode: %v", err)
+		return v, fmt.Errorf("gob decode: %w", err)
 	}
 	return v, nil
 }
@@ -92,12 +92,12 @@ func sign(username, secret string) (string, error) {
 
 	payloadBytes, err := payloadToBytes(payload)
 	if err != nil {
-		return "", fmt.Errorf("payload to bytes: %v", err)
+		return "", fmt.Errorf("payload to bytes: %w", err)
 	}
 
 	priv, err := secretToKeys(secret)
 	if err != nil {
-		return "", fmt.Errorf("derive key from secret: %v", err)
+		return "", fmt.Errorf("derive key from secret: %w", err)
 	}
 
 	signature, err := priv.Sign(nil, payloadBytes, &ed25519.Options{})
@@ -116,22 +116,22 @@ func sign(username, secret string) (string, error) {
 func verifySignature(dataStr, secret string, maxAge time.Duration) (string, error) {
 	data, err := base64.URLEncoding.DecodeString(dataStr)
 	if err != nil {
-		return "", fmt.Errorf("base64 decode token: %v", err)
+		return "", fmt.Errorf("base64 decode token: %w", err)
 	}
 
 	ft, err := gobDecode[fullToken](data)
 	if err != nil {
-		return "", fmt.Errorf("decode FullToken: %v", err)
+		return "", fmt.Errorf("decode FullToken: %w", err)
 	}
 
 	priv, err := secretToKeys(secret)
 	if err != nil {
-		return "", fmt.Errorf("derive key from secret: %v", err)
+		return "", fmt.Errorf("derive key from secret: %w", err)
 	}
 
 	payloadBytes, err := payloadToBytes(ft.Data)
 	if err != nil {
-		return "", fmt.Errorf("payload to bytes: %v", err)
+		return "", fmt.Errorf("payload to bytes: %w", err)
 	}
 
 	if !ed25519.Verify(priv.Public().(ed25519.PublicKey), payloadBytes, ft.Sign) {
