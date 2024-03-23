@@ -130,6 +130,8 @@ func run(log *slog.Logger, srv http.Handler, conf config) error {
 	httpServer := &http.Server{
 		Addr:    net.JoinHostPort(conf.host, conf.port),
 		Handler: srv,
+
+		ReadHeaderTimeout: 1 * time.Second,
 	}
 
 	log.Info("listening", "address", httpServer.Addr)

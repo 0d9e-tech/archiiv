@@ -16,7 +16,7 @@ func addRoutes(
 ) {
 	mux.Handle("POST /api/v1/login", handleLogin(secret, log, userStore))
 	//mux.Handle("POST /api/v1/refresh-token", handleSessionTokenRefresh(secret, log, userStore))
-	mux.Handle("GET /api/v1/whoami", requireLogin(secret, log, handleWhoami(secret)))
+	mux.Handle("GET /api/v1/whoami", requireLogin(secret, log, handleWhoami(secret, log)))
 
 	mux.Handle("GET /api/v1/fs/ls/{uuid}", requireLogin(secret, log, handleLs(fileStore, log)))
 	mux.Handle("GET /api/v1/fs/cat/{uuid}/{section}", requireLogin(secret, log, handleCat(fileStore, log)))

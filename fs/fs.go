@@ -373,3 +373,58 @@ func NewFs(root uuid.UUID, basePath string) (fs *Fs, err error) {
 
 	return fs, checkLoadedRecordsAreSane(fs.records)
 }
+
+// function argument `dir` has to be checked by the caller
+// InitFsDir creates the following directory structure:
+//
+// dir
+// ├── fs
+// │   ├── ...
+// │   ├── ...
+// │   └── 38b4183d-4df4-43dd-9495-1847083a3662
+// └── users.json
+//
+// Used to setup a server in unittests.
+func InitFsDir(dir string, users map[string][64]byte) (rootUUID uuid.UUID, err error) {
+	fsDir := filepath.Join(dir, "fs")
+	if err = os.Mkdir(fsDir, 0750); err != nil {
+		err = fmt.Errorf("InitFsDir: %w", err)
+		return
+	}
+
+	rootUUID = uuid.New()
+
+	// create root uuid
+	rootUUIDPath := filepath.Join(fsDir, rootUUID.String())
+	f, err := os.Create(rootUUIDPath) // #nosec G304: the dir argument is trusted
+	if err != nil {
+		err = fmt.Errorf("InitFsDir: %v", err)
+		return
+	}
+	defer f.Close()
+
+	err = json.NewEncoder(f).Encode(record{
+		IsDir: true,
+	})
+	if err != nil {
+		err = fmt.Errorf("InitFsDir: %v", err)
+		return
+	}
+
+	// create users.json
+	usersPath := filepath.Join(dir, "users.json")
+	f2, err := os.Create(usersPath) // #nosec G304: the dir argument is trusted
+	if err != nil {
+		err = fmt.Errorf("InitFsDir: %v", err)
+		return
+	}
+	defer f2.Close()
+
+	err = json.NewEncoder(f2).Encode(users)
+	if err != nil {
+		err = fmt.Errorf("InitFsDir: %v", err)
+		return
+	}
+
+	return
+}
