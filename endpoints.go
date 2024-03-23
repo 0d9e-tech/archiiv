@@ -139,7 +139,7 @@ func handleUpload(log *slog.Logger, fs *fs.Fs) http.Handler {
 		uuid, e := uuid.Parse(uuidArg)
 		if e != nil {
 			log.Error("handleUpload", "error", e)
-			sendError(log, w, http.StatusBadRequest, fmt.Sprintf("invalid uuid"))
+			sendError(log, w, http.StatusBadRequest, "invalid uuid")
 			return
 		}
 
