@@ -47,11 +47,13 @@ func secretToKeys(secretStr string) (priv ed25519.PrivateKey, err error) {
 	return
 }
 
-func payloadToBytes(p TokenPayload) []byte {
+func payloadToBytes(p TokenPayload) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
-	enc.Encode(p)
-	return buf.Bytes()
+	if err := enc.Encode(p); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 func gobEncode(v any) ([]byte, error) {
@@ -88,7 +90,10 @@ func Sign(username, secret string) (string, error) {
 		Nonce:     nonce.Int64(),
 	}
 
-	payloadBytes := payloadToBytes(payload)
+	payloadBytes, err := payloadToBytes(payload)
+	if err != nil {
+		return "", fmt.Errorf("payload to bytes: %v", err)
+	}
 
 	priv, err := secretToKeys(secret)
 	if err != nil {
@@ -127,7 +132,10 @@ func VerifySignature(dataStr, secret string, maxAge time.Duration) (string, erro
 		return "", fmt.Errorf("derive key from secret: %v", err)
 	}
 
-	payloadBytes := payloadToBytes(ft.Data)
+	payloadBytes, err := payloadToBytes(ft.Data)
+	if err != nil {
+		return "", fmt.Errorf("payload to bytes: %v", err)
+	}
 
 	if !ed25519.Verify(priv.Public().(ed25519.PublicKey), payloadBytes, ft.Sign) {
 		return "", errors.New("signature is invalid")
